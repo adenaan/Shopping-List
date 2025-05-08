@@ -1,5 +1,5 @@
 const CACHE_NAME = "shopping-list-cache-v1";
-const urlsToCache = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png"];
+const urlsToCache = ["/", "/index.html", "/Shopping-List/manifest.json", "/Shopping-List/icon-192.png", "/Shopping-List/icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
