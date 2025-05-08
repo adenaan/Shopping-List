@@ -7,6 +7,7 @@
   <link rel="icon" href="/assets/icon-192.png" />
   <meta name="theme-color" content="#4CAF50" />
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="apple-touch-icon" href="/assets/icon-192.png" />
 
   <title>Shopping List (Cloud Sync)</title>
   <style>
@@ -58,6 +59,16 @@
       gap: 10px;
       margin-top: 10px;
     }
+    #installBtn {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 1em;
+      margin-top: 15px;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -76,8 +87,11 @@
     <button onclick="clearList()">Clear All</button>
   </div>
 
+  <!-- Install Button -->
+  <button id="installBtn">Install App</button>
+
   <script>
-    const apiUrl = 'https://shoppinglistaddie.glitch.me'; // Replace with your actual Glitch URL
+    const apiUrl = 'https://shoppinglistaddie.glitch.me';
 
     const input = document.getElementById('itemInput');
     const addBtn = document.getElementById('addBtn');
@@ -124,7 +138,6 @@
 
     async function clearList() {
       if (!confirm('Are you sure you want to delete the entire list?')) return;
-
       await fetch(`${apiUrl}/list`, { method: 'DELETE' });
       loadList();
     }
@@ -134,7 +147,6 @@
       const data = await res.json();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
-
       const a = document.createElement('a');
       a.href = url;
       a.download = 'shopping-list.json';
@@ -147,7 +159,6 @@
     async function importList(event) {
       const file = event.target.files[0];
       if (!file) return;
-
       const text = await file.text();
       let items;
       try {
@@ -171,12 +182,37 @@
       loadList();
     }
 
-    // Register the Service Worker for PWA functionality
+    // Register the Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/service-worker.js')
         .then(() => console.log('Service Worker registered'))
         .catch(err => console.error('Service Worker registration failed:', err));
     }
+
+    // Handle Install Prompt
+    let deferredPrompt;
+    const installBtn = document.getElementById('installBtn');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.style.display = 'block';
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          console.log('User accepted the install prompt');
+        } else {
+          console.log('User dismissed the install prompt');
+        }
+        deferredPrompt = null;
+        installBtn.style.display = 'none';
+      }
+    });
+
     loadList();
   </script>
 </body>
