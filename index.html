@@ -91,129 +91,164 @@
   <button id="installBtn">Install App</button>
 
   <script>
-  const apiUrl = 'https://shoppinglistaddie.glitch.me';
+    const apiUrl = 'https://shoppinglistaddie.glitch.me';
 
-  const input = document.getElementById('itemInput');
-  const addBtn = document.getElementById('addBtn');
-  const listEl = document.getElementById('list');
-  const installBtn = document.getElementById('installBtn');
-  let deferredPrompt;
+    const input = document.getElementById('itemInput');
+    const addBtn = document.getElementById('addBtn');
+    const listEl = document.getElementById('list');
 
-  async function loadList() {
-    const res = await fetch(`${apiUrl}/list`);
-    const items = await res.json();
-    listEl.innerHTML = '';
-    items.forEach((item, index) => addItemToDOM(item, index));
-  }
-
-  function addItemToDOM(text, index) {
-    const li = document.createElement('li');
-    li.innerHTML = `<span>${text}</span>
-      <button class="removeBtn" onclick="removeItem(${index})">Remove</button>`;
-    listEl.appendChild(li);
-  }
-
-  addBtn.onclick = async () => {
-    const text = input.value.trim();
-    if (!text) return;
-
-    const res = await fetch(`${apiUrl}/list`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text })
-    });
-
-    if (!res.ok) {
-      const err = await res.json();
-      alert('Error: ' + (err.error || 'Something went wrong'));
-      return;
+    async function loadList() {
+      try {
+        const res = await fetch(`${apiUrl}/list`);
+        const items = await res.json();
+        localStorage.setItem('shoppingList', JSON.stringify(items));
+        renderList(items);
+      } catch (err) {
+        console.warn('Offline: Loading from cache');
+        const cached = localStorage.getItem('shoppingList');
+        if (cached) {
+          const items = JSON.parse(cached);
+          renderList(items);
+        }
+      }
     }
 
-    input.value = '';
-    loadList();
-  };
-
-  async function removeItem(index) {
-    await fetch(`${apiUrl}/list/${index}`, { method: 'DELETE' });
-    loadList();
-  }
-
-  async function clearList() {
-    if (!confirm('Are you sure you want to delete the entire list?')) return;
-    await fetch(`${apiUrl}/list`, { method: 'DELETE' });
-    loadList();
-  }
-
-  async function exportList() {
-    const res = await fetch(`${apiUrl}/list`);
-    const data = await res.json();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'shopping-list.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
-
-  async function importList(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const text = await file.text();
-    let items;
-    try {
-      items = JSON.parse(text);
-      if (!Array.isArray(items)) throw new Error("Not a valid list");
-    } catch (err) {
-      alert("Invalid JSON file.");
-      return;
+    function renderList(items) {
+      listEl.innerHTML = '';
+      items.forEach((item, index) => addItemToDOM(item, index));
     }
 
-    for (const item of items) {
-      if (typeof item === 'string') {
-        await fetch(`${apiUrl}/list`, {
+    function addItemToDOM(text, index) {
+      const li = document.createElement('li');
+      li.innerHTML = `<span>${text}</span>
+        <button class="removeBtn" onclick="removeItem(${index})">Remove</button>`;
+      listEl.appendChild(li);
+    }
+
+    addBtn.onclick = async () => {
+      const text = input.value.trim();
+      if (!text) return;
+
+      try {
+        const res = await fetch(`${apiUrl}/list`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: item })
+          body: JSON.stringify({ text })
         });
+
+        if (!res.ok) {
+          const err = await res.json();
+          alert('Error: ' + (err.error || 'Something went wrong'));
+          return;
+        }
+
+        input.value = '';
+        loadList();
+      } catch (e) {
+        alert('Offline: Changes will not sync.');
+      }
+    };
+
+    async function removeItem(index) {
+      try {
+        await fetch(`${apiUrl}/list/${index}`, { method: 'DELETE' });
+        loadList();
+      } catch (e) {
+        alert('Offline: Unable to delete');
       }
     }
+
+    async function clearList() {
+      if (!confirm('Are you sure you want to delete the entire list?')) return;
+      try {
+        await fetch(`${apiUrl}/list`, { method: 'DELETE' });
+        loadList();
+      } catch (e) {
+        alert('Offline: Unable to clear');
+      }
+    }
+
+    async function exportList() {
+      try {
+        const res = await fetch(`${apiUrl}/list`);
+        const data = await res.json();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'shopping-list.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        alert('Offline: Cannot export');
+      }
+    }
+
+    async function importList(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const text = await file.text();
+      let items;
+      try {
+        items = JSON.parse(text);
+        if (!Array.isArray(items)) throw new Error("Not a valid list");
+      } catch (err) {
+        alert("Invalid JSON file.");
+        return;
+      }
+
+      for (const item of items) {
+        if (typeof item === 'string') {
+          try {
+            await fetch(`${apiUrl}/list`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text: item })
+            });
+          } catch (e) {
+            alert('Offline: Some items not synced');
+            break;
+          }
+        }
+      }
+
+      loadList();
+    }
+
+    // Register the Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/Shopping-List/service-worker.js')
+        .then(() => console.log('Service Worker registered'))
+        .catch(err => console.error('Service Worker registration failed:', err));
+    }
+
+    // Handle Install Prompt
+    let deferredPrompt;
+    const installBtn = document.getElementById('installBtn');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.style.display = 'block';
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          console.log('User accepted the install prompt');
+        } else {
+          console.log('User dismissed the install prompt');
+        }
+        deferredPrompt = null;
+        installBtn.style.display = 'none';
+      }
+    });
 
     loadList();
-  }
-
-  // Register the Service Worker
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/Shopping-List/service-worker.js')
-      .then(() => console.log('Service Worker registered'))
-      .catch(err => console.error('Service Worker registration failed:', err));
-  }
-
-  // Handle Install Prompt
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    installBtn.style.display = 'block';
-  });
-
-  installBtn.addEventListener('click', async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        console.log('User accepted the install prompt');
-      } else {
-        console.log('User dismissed the install prompt');
-      }
-      deferredPrompt = null;
-      installBtn.style.display = 'none';
-    }
-  });
-
-  loadList();
-</script>
-
+  </script>
 </body>
 </html>
