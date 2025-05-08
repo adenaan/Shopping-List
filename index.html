@@ -102,11 +102,13 @@
 
     async function loadList() {
       try {
+        // Attempt to fetch the list from the server
         const res = await fetch(`${apiUrl}/list`);
         const items = await res.json();
-        localStorage.setItem('cachedList', JSON.stringify(items));
+        localStorage.setItem('cachedList', JSON.stringify(items)); // Cache the list when online
         renderList(items);
       } catch (err) {
+        // If offline, try to load from localStorage
         const cached = localStorage.getItem('cachedList');
         if (cached) {
           const items = JSON.parse(cached);
@@ -129,6 +131,7 @@
       if (!text) return;
 
       try {
+        // Attempt to add the item to the server
         const res = await fetch(`${apiUrl}/list`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -142,28 +145,44 @@
         }
 
         input.value = '';
-        loadList();
+        loadList(); // Refresh the list after adding
       } catch {
-        alert('Cannot add item while offline.');
+        // When offline, add item to localStorage
+        const cached = localStorage.getItem('cachedList');
+        const items = cached ? JSON.parse(cached) : [];
+        items.push(text);
+        localStorage.setItem('cachedList', JSON.stringify(items));
+        loadList(); // Re-render with cached data
       }
     };
 
     async function removeItem(index) {
       try {
+        // Attempt to remove the item from the server
         await fetch(`${apiUrl}/list/${index}`, { method: 'DELETE' });
         loadList();
       } catch {
-        alert('Cannot remove item while offline.');
+        // When offline, remove item from localStorage
+        const cached = localStorage.getItem('cachedList');
+        if (cached) {
+          const items = JSON.parse(cached);
+          items.splice(index, 1);
+          localStorage.setItem('cachedList', JSON.stringify(items));
+          loadList();
+        }
       }
     }
 
     async function clearList() {
       if (!confirm('Are you sure you want to delete the entire list?')) return;
       try {
+        // Attempt to clear the list on the server
         await fetch(`${apiUrl}/list`, { method: 'DELETE' });
         loadList();
       } catch {
-        alert('Cannot clear list while offline.');
+        // When offline, clear the localStorage cache
+        localStorage.removeItem('cachedList');
+        loadList();
       }
     }
 
