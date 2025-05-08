@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <link rel="manifest" href="/manifest.json" />
-  <link rel="icon" href="/icon-192.png" />
+  <link rel="manifest" href="/Shopping-List/manifest.json" />
+  <link rel="icon" href="/Shopping-List/icon-192.png" />
   <meta name="theme-color" content="#4CAF50" />
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <link rel="apple-touch-icon" href="/icon-192.png" />
+  <link rel="apple-touch-icon" href="/Shopping-List/icon-192.png" />
 
   <title>Shopping List (Cloud Sync)</title>
   <style>
@@ -184,7 +184,7 @@
 
     // Register the Service Worker
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/service-worker.js')
+      navigator.serviceWorker.register('/Shopping-List/service-worker.js')
         .then(() => console.log('Service Worker registered'))
         .catch(err => console.error('Service Worker registration failed:', err));
     }
