@@ -117,7 +117,7 @@
             const items = JSON.parse(cached);
             renderList(items);
           } else {
-            listEl.innerHTML = '<li>Offline and no cached data available.</li>';
+            listEl.innerHTML = '<li>No items available.</li>';
           }
         }
       } else {
@@ -127,7 +127,7 @@
           const items = JSON.parse(cached);
           renderList(items);
         } else {
-          listEl.innerHTML = '<li>Offline and no cached data available.</li>';
+          listEl.innerHTML = '<li>No items available (Offline mode).</li>';
         }
       }
     }
