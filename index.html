@@ -92,30 +92,56 @@
 
   <script>
     const apiUrl = 'https://shoppinglistaddie.glitch.me';
-
     const input = document.getElementById('itemInput');
     const addBtn = document.getElementById('addBtn');
     const listEl = document.getElementById('list');
+    const installBtn = document.getElementById('installBtn');
+
+    let deferredPrompt;
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.style.display = 'block';
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          console.log('User accepted the install prompt');
+        } else {
+          console.log('User dismissed the install prompt');
+        }
+        deferredPrompt = null;
+        installBtn.style.display = 'none';
+      }
+    });
+
+    // Offline storage helpers
+    function saveToLocal(items) {
+      localStorage.setItem('shoppingList', JSON.stringify(items));
+    }
+
+    function loadFromLocal() {
+      const data = localStorage.getItem('shoppingList');
+      return data ? JSON.parse(data) : [];
+    }
 
     async function loadList() {
       try {
         const res = await fetch(`${apiUrl}/list`);
         const items = await res.json();
-        localStorage.setItem('shoppingList', JSON.stringify(items));
-        renderList(items);
+        listEl.innerHTML = '';
+        items.forEach((item, index) => addItemToDOM(item, index));
+        saveToLocal(items);
       } catch (err) {
-        console.warn('Offline: Loading from cache');
-        const cached = localStorage.getItem('shoppingList');
-        if (cached) {
-          const items = JSON.parse(cached);
-          renderList(items);
-        }
+        const items = loadFromLocal();
+        listEl.innerHTML = '';
+        items.forEach((item, index) => addItemToDOM(item, index));
+        console.warn('Offline mode: loaded from localStorage');
       }
-    }
-
-    function renderList(items) {
-      listEl.innerHTML = '';
-      items.forEach((item, index) => addItemToDOM(item, index));
     }
 
     function addItemToDOM(text, index) {
@@ -144,8 +170,12 @@
 
         input.value = '';
         loadList();
-      } catch (e) {
-        alert('Offline: Changes will not sync.');
+      } catch (err) {
+        const items = loadFromLocal();
+        items.push(text);
+        saveToLocal(items);
+        input.value = '';
+        loadList();
       }
     };
 
@@ -153,8 +183,11 @@
       try {
         await fetch(`${apiUrl}/list/${index}`, { method: 'DELETE' });
         loadList();
-      } catch (e) {
-        alert('Offline: Unable to delete');
+      } catch (err) {
+        const items = loadFromLocal();
+        items.splice(index, 1);
+        saveToLocal(items);
+        loadList();
       }
     }
 
@@ -163,8 +196,9 @@
       try {
         await fetch(`${apiUrl}/list`, { method: 'DELETE' });
         loadList();
-      } catch (e) {
-        alert('Offline: Unable to clear');
+      } catch (err) {
+        saveToLocal([]);
+        loadList();
       }
     }
 
@@ -181,8 +215,8 @@
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-      } catch (e) {
-        alert('Offline: Cannot export');
+      } catch (err) {
+        alert("You're offline. Export unavailable.");
       }
     }
 
@@ -207,9 +241,10 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ text: item })
             });
-          } catch (e) {
-            alert('Offline: Some items not synced');
-            break;
+          } catch (err) {
+            const local = loadFromLocal();
+            local.push(item);
+            saveToLocal(local);
           }
         }
       }
@@ -217,36 +252,11 @@
       loadList();
     }
 
-    // Register the Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/Shopping-List/service-worker.js')
         .then(() => console.log('Service Worker registered'))
         .catch(err => console.error('Service Worker registration failed:', err));
     }
-
-    // Handle Install Prompt
-    let deferredPrompt;
-    const installBtn = document.getElementById('installBtn');
-
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      installBtn.style.display = 'block';
-    });
-
-    installBtn.addEventListener('click', async () => {
-      if (deferredPrompt) {
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-          console.log('User accepted the install prompt');
-        } else {
-          console.log('User dismissed the install prompt');
-        }
-        deferredPrompt = null;
-        installBtn.style.display = 'none';
-      }
-    });
 
     loadList();
   </script>
