@@ -1,7 +1,7 @@
 const CACHE_NAME = "shopping-list-cache-v1";
 const urlsToCache = [
   
-  "https://adenaan.github.io/Shopping-List/index.html",
+  "https://adenaan.github.io/Shopping-List/",
   "/Shopping-List/manifest.json",
   "/Shopping-List/icon-192.png",
   "/Shopping-List/icon-512.png"
