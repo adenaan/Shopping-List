@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -88,7 +89,8 @@
   </div>
 
   <!-- Install Button -->
-  <button id="installBtn">Install App</button>
+
+<button id="installBtn">Install App</button>
 
   <script>
     const apiUrl = 'https://shoppinglistaddie.glitch.me';
@@ -96,8 +98,6 @@
     const input = document.getElementById('itemInput');
     const addBtn = document.getElementById('addBtn');
     const listEl = document.getElementById('list');
-    const installBtn = document.getElementById('installBtn');
-    let deferredPrompt;
 
     async function loadList() {
       const res = await fetch(`${apiUrl}/list`);
@@ -192,6 +192,9 @@
     }
 
     // Handle Install Prompt
+    let deferredPrompt;
+    const installBtn = document.getElementById('installBtn');
+
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
@@ -208,19 +211,12 @@
           console.log('User dismissed the install prompt');
         }
         deferredPrompt = null;
-        // Hide if running standalone (covers Huawei, iOS)
-        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
-          installBtn.style.display = 'none';
-        }
+        installBtn.style.display = 'none';
       }
     });
 
     loadList();
-
-    // Fallback: Hide install button if app is already installed
-    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
-      installBtn.style.display = 'none';
-    }
   </script>
+
 </body>
 </html>
