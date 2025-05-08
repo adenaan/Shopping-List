@@ -95,23 +95,31 @@
     const addBtn = document.getElementById('addBtn');
     const listEl = document.getElementById('list');
 
-    // Helper function to render items to DOM
+    // Function to render the list from items
     function renderList(items) {
       listEl.innerHTML = '';
       items.forEach((item, index) => addItemToDOM(item, index));
     }
 
-    // Attempt to load the list (online or offline)
+    // Function to add item to the DOM
+    function addItemToDOM(text, index) {
+      const li = document.createElement('li');
+      li.innerHTML = `<span>${text}</span>
+        <button class="removeBtn" onclick="removeItem(${index})">Remove</button>`;
+      listEl.appendChild(li);
+    }
+
+    // Function to load the list (from API or localStorage)
     async function loadList() {
       if (navigator.onLine) {
-        // If online, fetch from the API
+        // Fetch the list from API if online
         try {
           const res = await fetch(`${apiUrl}/list`);
           const items = await res.json();
-          localStorage.setItem('cachedList', JSON.stringify(items)); // Cache the list to localStorage
+          localStorage.setItem('cachedList', JSON.stringify(items)); // Cache the list in localStorage
           renderList(items);
         } catch (err) {
-          // If API fails (e.g. offline), load from localStorage
+          // If API fails (e.g., offline), load from localStorage
           const cached = localStorage.getItem('cachedList');
           if (cached) {
             const items = JSON.parse(cached);
@@ -130,14 +138,6 @@
           listEl.innerHTML = '<li>No items available (Offline mode).</li>';
         }
       }
-    }
-
-    // Add item to the DOM
-    function addItemToDOM(text, index) {
-      const li = document.createElement('li');
-      li.innerHTML = `<span>${text}</span>
-        <button class="removeBtn" onclick="removeItem(${index})">Remove</button>`;
-      listEl.appendChild(li);
     }
 
     // Add new item (online or offline)
