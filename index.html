@@ -47,6 +47,12 @@
     hr {
       margin: 20px 0;
     }
+    .control-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -58,11 +64,15 @@
   <ul id="list"></ul>
 
   <hr />
-  <button onclick="exportList()">Export JSON</button>
-  <input type="file" accept=".json" onchange="importList(event)" />
+
+  <div class="control-buttons">
+    <button onclick="exportList()">Export List</button>
+    <input type="file" accept=".json" onchange="importList(event)" />
+    <button onclick="clearList()">Clear All</button>
+  </div>
 
   <script>
-    const apiUrl = 'https://shoppinglistaddie.glitch.me'; // Replace with your Glitch URL
+    const apiUrl = 'https://shoppinglistaddie.glitch.me'; // Replace with your actual Glitch URL
 
     const input = document.getElementById('itemInput');
     const addBtn = document.getElementById('addBtn');
@@ -85,11 +95,19 @@
     addBtn.onclick = async () => {
       const text = input.value.trim();
       if (!text) return;
-      await fetch(`${apiUrl}/list`, {
+
+      const res = await fetch(`${apiUrl}/list`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text })
       });
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert('Error: ' + (err.error || 'Something went wrong'));
+        return;
+      }
+
       input.value = '';
       loadList();
     };
@@ -99,7 +117,13 @@
       loadList();
     }
 
-    // Export current list to a downloadable JSON file
+    async function clearList() {
+      if (!confirm('Are you sure you want to delete the entire list?')) return;
+
+      await fetch(`${apiUrl}/list`, { method: 'DELETE' });
+      loadList();
+    }
+
     async function exportList() {
       const res = await fetch(`${apiUrl}/list`);
       const data = await res.json();
@@ -115,7 +139,6 @@
       URL.revokeObjectURL(url);
     }
 
-    // Import JSON file and send each item to the server
     async function importList(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -143,7 +166,6 @@
       loadList();
     }
 
-    // Initial load
     loadList();
   </script>
 </body>
