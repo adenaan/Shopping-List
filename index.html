@@ -8,7 +8,6 @@
   <meta name="theme-color" content="#4CAF50" />
   <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="apple-touch-icon" href="/Shopping-List/icon-192.png" />
-
   <title>Shopping List (Cloud Sync)</title>
   <style>
     body {
@@ -87,7 +86,6 @@
     <button onclick="clearList()">Clear All</button>
   </div>
 
-  <!-- Install Button -->
   <button id="installBtn">Install App</button>
 
   <script>
@@ -193,11 +191,14 @@
     let deferredPrompt;
     const installBtn = document.getElementById('installBtn');
 
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      installBtn.style.display = 'block';
-    });
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    if (!isStandalone) {
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        installBtn.style.display = 'block';
+      });
+    }
 
     installBtn.addEventListener('click', async () => {
       if (deferredPrompt) {
@@ -211,6 +212,12 @@
         deferredPrompt = null;
         installBtn.style.display = 'none';
       }
+    });
+
+    // Hide install button if app was installed
+    window.addEventListener('appinstalled', () => {
+      console.log('App was installed');
+      installBtn.style.display = 'none';
     });
 
     loadList();
