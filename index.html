@@ -95,31 +95,16 @@
     const addBtn = document.getElementById('addBtn');
     const listEl = document.getElementById('list');
 
-    // Function to render the list from items
-    function renderList(items) {
-      listEl.innerHTML = '';
-      items.forEach((item, index) => addItemToDOM(item, index));
-    }
-
-    // Function to add item to the DOM
-    function addItemToDOM(text, index) {
-      const li = document.createElement('li');
-      li.innerHTML = `<span>${text}</span>
-        <button class="removeBtn" onclick="removeItem(${index})">Remove</button>`;
-      listEl.appendChild(li);
-    }
-
-    // Function to load the list (from API or localStorage)
+    // Load list from localStorage or API
     async function loadList() {
       if (navigator.onLine) {
-        // Fetch the list from API if online
         try {
           const res = await fetch(`${apiUrl}/list`);
           const items = await res.json();
           localStorage.setItem('cachedList', JSON.stringify(items)); // Cache the list in localStorage
           renderList(items);
         } catch (err) {
-          // If API fails (e.g., offline), load from localStorage
+          // If API fails, fallback to localStorage
           const cached = localStorage.getItem('cachedList');
           if (cached) {
             const items = JSON.parse(cached);
@@ -129,7 +114,6 @@
           }
         }
       } else {
-        // If offline, load from localStorage
         const cached = localStorage.getItem('cachedList');
         if (cached) {
           const items = JSON.parse(cached);
@@ -140,13 +124,26 @@
       }
     }
 
-    // Add new item (online or offline)
+    // Render the list
+    function renderList(items) {
+      listEl.innerHTML = '';
+      items.forEach((item, index) => addItemToDOM(item, index));
+    }
+
+    // Add item to DOM
+    function addItemToDOM(text, index) {
+      const li = document.createElement('li');
+      li.innerHTML = `<span>${text}</span>
+        <button class="removeBtn" onclick="removeItem(${index})">Remove</button>`;
+      listEl.appendChild(li);
+    }
+
+    // Add item (online or offline)
     addBtn.onclick = async () => {
       const text = input.value.trim();
       if (!text) return;
 
       if (navigator.onLine) {
-        // If online, add the item to the server
         try {
           const res = await fetch(`${apiUrl}/list`, {
             method: 'POST',
@@ -154,44 +151,35 @@
             body: JSON.stringify({ text })
           });
 
-          if (!res.ok) {
-            const err = await res.json();
-            alert('Error: ' + (err.error || 'Something went wrong'));
-            return;
+          if (res.ok) {
+            input.value = '';
+            loadList(); // Reload the list after adding
+          } else {
+            alert('Error adding item.');
           }
-
-          input.value = '';
-          loadList(); // Reload the list after adding
         } catch {
-          // If offline, add to localStorage
-          const cached = localStorage.getItem('cachedList');
-          const items = cached ? JSON.parse(cached) : [];
-          items.push(text);
-          localStorage.setItem('cachedList', JSON.stringify(items));
-          loadList(); // Re-render with cached data
+          alert('Error: Could not sync with server.');
         }
       } else {
-        // When offline, add to localStorage
+        // When offline, save item to localStorage
         const cached = localStorage.getItem('cachedList');
         const items = cached ? JSON.parse(cached) : [];
         items.push(text);
         localStorage.setItem('cachedList', JSON.stringify(items));
-        loadList(); // Re-render with cached data
+        loadList();
       }
     };
 
     // Remove item (online or offline)
     async function removeItem(index) {
       if (navigator.onLine) {
-        // If online, remove from server
         try {
           await fetch(`${apiUrl}/list/${index}`, { method: 'DELETE' });
           loadList();
         } catch {
-          alert('Unable to delete item while offline.');
+          alert('Error: Could not sync with server.');
         }
       } else {
-        // If offline, remove from localStorage
         const cached = localStorage.getItem('cachedList');
         if (cached) {
           const items = JSON.parse(cached);
@@ -202,20 +190,18 @@
       }
     }
 
-    // Clear the list (online or offline)
+    // Clear list (online or offline)
     async function clearList() {
       if (!confirm('Are you sure you want to delete the entire list?')) return;
 
       if (navigator.onLine) {
-        // If online, clear the list on the server
         try {
           await fetch(`${apiUrl}/list`, { method: 'DELETE' });
           loadList();
         } catch {
-          alert('Unable to clear list while offline.');
+          alert('Error: Could not sync with server.');
         }
       } else {
-        // If offline, clear localStorage
         localStorage.removeItem('cachedList');
         loadList();
       }
@@ -237,14 +223,14 @@
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
         } catch {
-          alert('Cannot export while offline.');
+          alert('Error exporting list.');
         }
       } else {
         alert('Cannot export while offline.');
       }
     }
 
-    // Import list from a JSON file
+    // Import list from JSON
     async function importList(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -252,9 +238,9 @@
       let items;
       try {
         items = JSON.parse(text);
-        if (!Array.isArray(items)) throw new Error("Not a valid list");
+        if (!Array.isArray(items)) throw new Error("Invalid list format.");
       } catch (err) {
-        alert("Invalid JSON file.");
+        alert('Invalid JSON file.');
         return;
       }
 
@@ -267,7 +253,7 @@
               body: JSON.stringify({ text: item })
             });
           } catch {
-            alert('Some items failed to import while offline.');
+            alert('Error syncing imported items.');
           }
         }
       }
