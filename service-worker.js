@@ -1,6 +1,6 @@
 const CACHE_NAME = "shopping-list-cache-v1";
 const urlsToCache = [
-  "/",
+  
   "/Shopping-List/index.html",
   "/Shopping-List/manifest.json",
   "/Shopping-List/icon-192.png",
