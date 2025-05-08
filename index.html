@@ -1,20 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shopping List (Glitch)</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Shopping List (Cloud Sync)</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; background: #f7f7f7; }
-    h1 { text-align: center; }
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      background: #f7f7f7;
+    }
+    h1 {
+      text-align: center;
+    }
     input, button {
       padding: 10px;
       font-size: 1em;
       margin: 5px 0;
     }
-    #itemInput { width: 70%; }
-    #addBtn { width: 28%; }
-    ul { list-style: none; padding: 0; }
+    #itemInput {
+      width: 70%;
+    }
+    #addBtn {
+      width: 28%;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
     li {
       background: white;
       padding: 10px;
@@ -31,16 +44,25 @@
       border-radius: 4px;
       padding: 5px 10px;
     }
+    hr {
+      margin: 20px 0;
+    }
   </style>
 </head>
 <body>
-  <h1>Shopping List By Addie</h1>
+  <h1>Shopping List (Cloud Sync)</h1>
+
   <input id="itemInput" placeholder="Add item..." />
   <button id="addBtn">Add</button>
+
   <ul id="list"></ul>
 
+  <hr />
+  <button onclick="exportList()">Export JSON</button>
+  <input type="file" accept=".json" onchange="importList(event)" />
+
   <script>
-    const apiUrl = 'https://shoppinglistaddie.glitch.me'; // Replace with your real URL
+    const apiUrl = 'https://your-glitch-project.glitch.me'; // Replace with your Glitch URL
 
     const input = document.getElementById('itemInput');
     const addBtn = document.getElementById('addBtn');
@@ -77,7 +99,51 @@
       loadList();
     }
 
-    // Load on page start
+    // Export current list to a downloadable JSON file
+    async function exportList() {
+      const res = await fetch(`${apiUrl}/list`);
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'shopping-list.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // Import JSON file and send each item to the server
+    async function importList(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const text = await file.text();
+      let items;
+      try {
+        items = JSON.parse(text);
+        if (!Array.isArray(items)) throw new Error("Not a valid list");
+      } catch (err) {
+        alert("Invalid JSON file.");
+        return;
+      }
+
+      for (const item of items) {
+        if (typeof item === 'string') {
+          await fetch(`${apiUrl}/list`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: item })
+          });
+        }
+      }
+
+      loadList();
+    }
+
+    // Initial load
     loadList();
   </script>
 </body>
