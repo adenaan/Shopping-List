@@ -1,7 +1,7 @@
 {
   "name": "Shopping List",
   "short_name": "ShopList",
-  "start_url": "/index.html/",
+  "start_url": "https://adenaan.github.io/Shopping-List/index.html",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
