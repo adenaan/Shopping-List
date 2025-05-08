@@ -95,30 +95,44 @@
     const addBtn = document.getElementById('addBtn');
     const listEl = document.getElementById('list');
 
+    // Helper function to render items to DOM
     function renderList(items) {
       listEl.innerHTML = '';
       items.forEach((item, index) => addItemToDOM(item, index));
     }
 
+    // Attempt to load the list (online or offline)
     async function loadList() {
-      try {
-        // Attempt to fetch the list from the server
-        const res = await fetch(`${apiUrl}/list`);
-        const items = await res.json();
-        localStorage.setItem('cachedList', JSON.stringify(items)); // Cache the list when online
-        renderList(items);
-      } catch (err) {
-        // If offline, try to load from localStorage
+      if (navigator.onLine) {
+        // If online, fetch from the API
+        try {
+          const res = await fetch(`${apiUrl}/list`);
+          const items = await res.json();
+          localStorage.setItem('cachedList', JSON.stringify(items)); // Cache the list to localStorage
+          renderList(items);
+        } catch (err) {
+          // If API fails (e.g. offline), load from localStorage
+          const cached = localStorage.getItem('cachedList');
+          if (cached) {
+            const items = JSON.parse(cached);
+            renderList(items);
+          } else {
+            listEl.innerHTML = '<li>Offline and no cached data available.</li>';
+          }
+        }
+      } else {
+        // If offline, load from localStorage
         const cached = localStorage.getItem('cachedList');
         if (cached) {
           const items = JSON.parse(cached);
           renderList(items);
         } else {
-          listEl.innerHTML = '<li>Offline and no cached data available</li>';
+          listEl.innerHTML = '<li>Offline and no cached data available.</li>';
         }
       }
     }
 
+    // Add item to the DOM
     function addItemToDOM(text, index) {
       const li = document.createElement('li');
       li.innerHTML = `<span>${text}</span>
@@ -126,28 +140,38 @@
       listEl.appendChild(li);
     }
 
+    // Add new item (online or offline)
     addBtn.onclick = async () => {
       const text = input.value.trim();
       if (!text) return;
 
-      try {
-        // Attempt to add the item to the server
-        const res = await fetch(`${apiUrl}/list`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text })
-        });
+      if (navigator.onLine) {
+        // If online, add the item to the server
+        try {
+          const res = await fetch(`${apiUrl}/list`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+          });
 
-        if (!res.ok) {
-          const err = await res.json();
-          alert('Error: ' + (err.error || 'Something went wrong'));
-          return;
+          if (!res.ok) {
+            const err = await res.json();
+            alert('Error: ' + (err.error || 'Something went wrong'));
+            return;
+          }
+
+          input.value = '';
+          loadList(); // Reload the list after adding
+        } catch {
+          // If offline, add to localStorage
+          const cached = localStorage.getItem('cachedList');
+          const items = cached ? JSON.parse(cached) : [];
+          items.push(text);
+          localStorage.setItem('cachedList', JSON.stringify(items));
+          loadList(); // Re-render with cached data
         }
-
-        input.value = '';
-        loadList(); // Refresh the list after adding
-      } catch {
-        // When offline, add item to localStorage
+      } else {
+        // When offline, add to localStorage
         const cached = localStorage.getItem('cachedList');
         const items = cached ? JSON.parse(cached) : [];
         items.push(text);
@@ -156,13 +180,18 @@
       }
     };
 
+    // Remove item (online or offline)
     async function removeItem(index) {
-      try {
-        // Attempt to remove the item from the server
-        await fetch(`${apiUrl}/list/${index}`, { method: 'DELETE' });
-        loadList();
-      } catch {
-        // When offline, remove item from localStorage
+      if (navigator.onLine) {
+        // If online, remove from server
+        try {
+          await fetch(`${apiUrl}/list/${index}`, { method: 'DELETE' });
+          loadList();
+        } catch {
+          alert('Unable to delete item while offline.');
+        }
+      } else {
+        // If offline, remove from localStorage
         const cached = localStorage.getItem('cachedList');
         if (cached) {
           const items = JSON.parse(cached);
@@ -173,37 +202,49 @@
       }
     }
 
+    // Clear the list (online or offline)
     async function clearList() {
       if (!confirm('Are you sure you want to delete the entire list?')) return;
-      try {
-        // Attempt to clear the list on the server
-        await fetch(`${apiUrl}/list`, { method: 'DELETE' });
-        loadList();
-      } catch {
-        // When offline, clear the localStorage cache
+
+      if (navigator.onLine) {
+        // If online, clear the list on the server
+        try {
+          await fetch(`${apiUrl}/list`, { method: 'DELETE' });
+          loadList();
+        } catch {
+          alert('Unable to clear list while offline.');
+        }
+      } else {
+        // If offline, clear localStorage
         localStorage.removeItem('cachedList');
         loadList();
       }
     }
 
+    // Export list to JSON
     async function exportList() {
-      try {
-        const res = await fetch(`${apiUrl}/list`);
-        const data = await res.json();
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'shopping-list.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      } catch {
+      if (navigator.onLine) {
+        try {
+          const res = await fetch(`${apiUrl}/list`);
+          const data = await res.json();
+          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'shopping-list.json';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        } catch {
+          alert('Cannot export while offline.');
+        }
+      } else {
         alert('Cannot export while offline.');
       }
     }
 
+    // Import list from a JSON file
     async function importList(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -234,14 +275,14 @@
       loadList();
     }
 
-    // Service Worker
+    // Service Worker for offline caching
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/Shopping-List/service-worker.js')
         .then(() => console.log('Service Worker registered'))
         .catch(err => console.error('Service Worker registration failed:', err));
     }
 
-    // Install Prompt
+    // Handle Install Prompt
     let deferredPrompt;
     const installBtn = document.getElementById('installBtn');
 
@@ -265,7 +306,7 @@
       }
     });
 
-    loadList();
+    loadList(); // Load the list initially
   </script>
 </body>
 </html>
