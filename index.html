@@ -68,35 +68,125 @@
       margin-top: 15px;
       display: none;
     }
+    /* Login Popup Styles */
+    #loginPopup {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    #loginPopup form {
+      background: #333;
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    }
+    #loginPopup input[type="text"], #loginPopup input[type="password"] {
+      display: block;
+      width: 100%;
+      margin: 10px 0;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+    }
+    #loginPopup button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      background: #28a745;
+      color: white;
+      cursor: pointer;
+    }
+    #loginPopup button:hover {
+      background: #218838;
+    }
+    #loginError {
+      color: red;
+      margin-top: 10px;
+    }
+    #content {
+      display: none; /* Hide main content until logged in */
+    }
   </style>
 </head>
 <body>
-  <h1>Shopping List By Addie</h1>
-
-  <input id="itemInput" placeholder="Add item..." />
-  <button id="addBtn">Add</button>
-
-  <ul id="list"></ul>
-
-  <hr />
-
-  <div class="control-buttons">
-    <button onclick="exportList()">Export List</button>
-    <input type="file" accept=".json" onchange="importList(event)" />
-    <button onclick="clearList()">Clear All</button>
+  <!-- Login Popup -->
+  <div id="loginPopup">
+    <form id="loginForm">
+      <h2>Login</h2>
+      <label for="username">Username:</label>
+      <input type="text" id="username" name="username" required />
+      <label for="password">Password:</label>
+      <input type="password" id="password" name="password" required />
+      <button type="submit">Login</button>
+      <div id="loginError"></div>
+    </form>
   </div>
 
-  <!-- Install Button -->
-  <button id="installBtn">Install App</button>
+  <!-- Main Content -->
+  <div id="content">
+    <h1>Shopping List By Addie</h1>
 
-<script>
+    <input id="itemInput" placeholder="Add item..." />
+    <button id="addBtn">Add</button>
+
+    <ul id="list"></ul>
+
+    <hr />
+
+    <div class="control-buttons">
+      <button onclick="exportList()">Export List</button>
+      <input type="file" accept=".json" onchange="importList(event)" />
+      <button onclick="clearList()">Clear All</button>
+    </div>
+
+    <!-- Install Button -->
+    <button id="installBtn">Install App</button>
+  </div>
+
+  <script>
+    // Hardcoded login credentials
+    const VALID_USERNAME = "admin";
+    const VALID_PASSWORD = "1234";
+
+    // DOM Elements
+    const loginPopup = document.getElementById("loginPopup");
+    const loginForm = document.getElementById("loginForm");
+    const loginError = document.getElementById("loginError");
+    const content = document.getElementById("content");
+
+    // Handle login form submission
+    loginForm.addEventListener("submit", (event) => {
+      event.preventDefault(); // Prevent form from refreshing the page
+
+      // Validate credentials
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+
+      if (username === VALID_USERNAME && password === VALID_PASSWORD) {
+        // Hide login popup and show main content
+        loginPopup.style.display = "none";
+        content.style.display = "block";
+      } else {
+        // Show error message
+        loginError.textContent = "Invalid username or password!";
+      }
+    });
+
+    // Shopping List Logic
     const apiUrl = 'https://shoppinglistaddie.glitch.me';
     const input = document.getElementById('itemInput');
     const addBtn = document.getElementById('addBtn');
     const listEl = document.getElementById('list');
     const installBtn = document.getElementById('installBtn');
 
-    // Load list from localStorage or API
     async function loadList() {
         if (navigator.onLine) {
             try {
@@ -363,5 +453,6 @@
     });
 
     loadList(); // Initial load of the list
-</script>
+  </script>
+</body>
 </html>
