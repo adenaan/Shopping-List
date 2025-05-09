@@ -97,29 +97,28 @@
 
     // Load list from localStorage or API
     async function loadList() {
-      const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
       if (navigator.onLine) {
         try {
           const res = await fetch(`${apiUrl}/list`);
           const items = await res.json();
           localStorage.setItem('cachedList', JSON.stringify(items)); // Cache the list in localStorage
-          renderList([...items, ...offlineItems]); // Combine online and offline items
+          renderList(items);
         } catch (err) {
           const cached = localStorage.getItem('cachedList');
           if (cached) {
             const items = JSON.parse(cached);
-            renderList([...items, ...offlineItems]); // Combine cached and offline items
+            renderList(items);
           } else {
-            renderList(offlineItems); // Only render offline items
+            listEl.innerHTML = '<li>No items available.</li>';
           }
         }
       } else {
-        const cached = localStorage.getItem('cachedList');
+        const cached = localStorage.getItem('offlineItems');
         if (cached) {
           const items = JSON.parse(cached);
-          renderList([...items, ...offlineItems]); // Combine cached and offline items
+          renderList(items);
         } else {
-          renderList(offlineItems); // Only render offline items
+          listEl.innerHTML = '<li>No items available (Offline mode).</li>';
         }
       }
     }
@@ -166,8 +165,10 @@
         offlineItems.push(text);
         localStorage.setItem('offlineItems', JSON.stringify(offlineItems));
 
+        // **Immediate update to the UI after saving to localStorage**
+        renderList(offlineItems); // Directly render the updated offline list
+
         input.value = ''; // Clear input
-        loadList(); // Reload the list with the new offline item
       }
     };
 
@@ -181,12 +182,12 @@
           alert('Error: Could not sync with server.');
         }
       } else {
-        const cached = localStorage.getItem('cachedList');
+        const cached = localStorage.getItem('offlineItems');
         if (cached) {
           const items = JSON.parse(cached);
           items.splice(index, 1);
-          localStorage.setItem('cachedList', JSON.stringify(items));
-          loadList();
+          localStorage.setItem('offlineItems', JSON.stringify(items));
+          loadList(); // Re-render after removing item
         }
       }
     }
@@ -203,8 +204,8 @@
           alert('Error: Could not sync with server.');
         }
       } else {
-        localStorage.removeItem('cachedList');
-        loadList();
+        localStorage.removeItem('offlineItems');
+        loadList(); // Re-render after clearing offline items
       }
     }
 
