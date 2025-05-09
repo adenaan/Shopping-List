@@ -162,13 +162,25 @@
             console.log("Adding item to DOM. Text:", text, "Index:", index);
 
             const li = document.createElement('li');
+            li.dataset.index = index; // Store the index in a data attribute
             li.innerHTML = `<span>${text}</span>
-                <button class="removeBtn" onclick="removeItem(${index})">Remove</button>`;
+                <button class="removeBtn">Remove</button>`;
             listEl.appendChild(li);
         }
 
-        // Define removeItem as a global function by attaching it to the window object
-        window.removeItem = async function (index) {
+        // Event delegation for handling remove buttons
+        listEl.addEventListener("click", async (event) => {
+            if (event.target.classList.contains("removeBtn")) {
+                const listItem = event.target.closest("li");
+                const index = parseInt(listItem.dataset.index, 10);
+
+                console.log(`Remove button clicked for index: ${index}`);
+                await removeItem(index); // Call the removeItem function
+            }
+        });
+
+        // Function to remove an item
+        async function removeItem(index) {
             console.log("Removing item at index:", index);
 
             const cachedItems = JSON.parse(localStorage.getItem('cachedList')) || [];
@@ -201,7 +213,7 @@
                 renderList([...cachedItems, ...offlineItems]);
                 console.log("Item removed locally, and list updated.");
             }
-        };
+        }
 
         // Function to render the full list
         function renderList(items) {
