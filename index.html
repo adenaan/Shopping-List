@@ -89,7 +89,7 @@
   <!-- Install Button -->
   <button id="installBtn">Install App</button>
 
-  <script>
+ <script>
     const apiUrl = 'https://shoppinglistaddie.glitch.me';
     const input = document.getElementById('itemInput');
     const addBtn = document.getElementById('addBtn');
@@ -104,22 +104,20 @@
           localStorage.setItem('cachedList', JSON.stringify(items)); // Cache the list in localStorage
           renderList(items);
         } catch (err) {
-          const cached = localStorage.getItem('cachedList');
-          if (cached) {
-            const items = JSON.parse(cached);
-            renderList(items);
-          } else {
-            listEl.innerHTML = '<li>No items available.</li>';
-          }
+          useCachedList();
         }
       } else {
-        const cached = localStorage.getItem('cachedList');
-        if (cached) {
-          const items = JSON.parse(cached);
-          renderList(items);
-        } else {
-          listEl.innerHTML = '<li>No items available (Offline mode).</li>';
-        }
+        useCachedList();
+      }
+    }
+
+    function useCachedList() {
+      const cached = localStorage.getItem('cachedList');
+      if (cached) {
+        const items = JSON.parse(cached);
+        renderList(items);
+      } else {
+        listEl.innerHTML = '<li>No items available (Offline mode).</li>';
       }
     }
 
@@ -160,14 +158,11 @@
           alert('Error: Could not sync with server.');
         }
       } else {
-        // When offline, save item to localStorage for later syncing
         const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
         offlineItems.push(text);
         localStorage.setItem('offlineItems', JSON.stringify(offlineItems));
 
-        // Immediately update the UI by adding the item to the list
-        addItemToDOM(text, offlineItems.length - 1);
-
+        addItemToDOM(text, offlineItems.length - 1); // Update UI
         input.value = ''; // Clear the input field
       }
     };
@@ -185,9 +180,16 @@
         const cached = localStorage.getItem('cachedList');
         if (cached) {
           const items = JSON.parse(cached);
+          const removedItem = items[index]; // Capture the removed item for syncing
           items.splice(index, 1);
           localStorage.setItem('cachedList', JSON.stringify(items));
-          loadList();
+
+          // Track the removal offline
+          const offlineRemovals = JSON.parse(localStorage.getItem('offlineRemovals')) || [];
+          offlineRemovals.push(removedItem); // Add the removed item for later syncing
+          localStorage.setItem('offlineRemovals', JSON.stringify(offlineRemovals));
+
+          loadList(); // Update the UI
         }
       }
     }
@@ -271,9 +273,10 @@
     }
 
     // Sync offline items once the user comes online
-    window.addEventListener('online', syncOfflineItems);
+    window.addEventListener('online', syncOfflineChanges);
 
-    async function syncOfflineItems() {
+    async function syncOfflineChanges() {
+      // Sync offline additions
       const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
       if (offlineItems.length > 0) {
         try {
@@ -284,13 +287,30 @@
               body: JSON.stringify({ text: item })
             });
           }
-          // After syncing, clear offline items
-          localStorage.removeItem('offlineItems');
-          loadList(); // Reload the list after syncing
+          localStorage.removeItem('offlineItems'); // Clear offline additions after syncing
         } catch (err) {
           console.error('Failed to sync offline items', err);
         }
       }
+
+      // Sync offline removals
+      const offlineRemovals = JSON.parse(localStorage.getItem('offlineRemovals')) || [];
+      if (offlineRemovals.length > 0) {
+        try {
+          const cachedList = JSON.parse(localStorage.getItem('cachedList')) || [];
+          for (const item of offlineRemovals) {
+            const index = cachedList.indexOf(item);
+            if (index > -1) {
+              await fetch(`${apiUrl}/list/${index}`, { method: 'DELETE' });
+            }
+          }
+          localStorage.removeItem('offlineRemovals'); // Clear offline removals after syncing
+        } catch (err) {
+          console.error('Failed to sync offline removals', err);
+        }
+      }
+
+      loadList(); // Reload the list after syncing
     }
 
     // Handle Install Prompt
