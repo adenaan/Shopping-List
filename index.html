@@ -104,7 +104,6 @@
           localStorage.setItem('cachedList', JSON.stringify(items)); // Cache the list in localStorage
           renderList(items);
         } catch (err) {
-          // If API fails, fallback to localStorage
           const cached = localStorage.getItem('cachedList');
           if (cached) {
             const items = JSON.parse(cached);
@@ -161,11 +160,10 @@
           alert('Error: Could not sync with server.');
         }
       } else {
-        // When offline, save item to localStorage
-        const cached = localStorage.getItem('cachedList');
-        const items = cached ? JSON.parse(cached) : [];
-        items.push(text);
-        localStorage.setItem('cachedList', JSON.stringify(items));
+        // When offline, save item to localStorage for later syncing
+        const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
+        offlineItems.push(text);
+        localStorage.setItem('offlineItems', JSON.stringify(offlineItems));
         loadList();
       }
     };
@@ -268,6 +266,29 @@
         .catch(err => console.error('Service Worker registration failed:', err));
     }
 
+    // Sync offline items once the user comes online
+    window.addEventListener('online', syncOfflineItems);
+
+    async function syncOfflineItems() {
+      const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
+      if (offlineItems.length > 0) {
+        try {
+          for (const item of offlineItems) {
+            await fetch(`${apiUrl}/list`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text: item })
+            });
+          }
+          // After syncing, clear offline items
+          localStorage.removeItem('offlineItems');
+          loadList(); // Reload the list after syncing
+        } catch (err) {
+          console.error('Failed to sync offline items', err);
+        }
+      }
+    }
+
     // Handle Install Prompt
     let deferredPrompt;
     const installBtn = document.getElementById('installBtn');
@@ -292,7 +313,7 @@
       }
     });
 
-    loadList();
+    loadList(); // Initial load of the list
   </script>
 </body>
 </html>
