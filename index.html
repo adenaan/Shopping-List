@@ -181,9 +181,9 @@
         const cached = localStorage.getItem('cachedList');
         if (cached) {
           const items = JSON.parse(cached);
-          items.splice(index, 1);
-          localStorage.setItem('cachedList', JSON.stringify(items));
-          loadList();
+          items.splice(index, 1); // Remove the item at the specified index
+          localStorage.setItem('cachedList', JSON.stringify(items)); // Update localStorage
+          loadList(); // Reload the list after removing
         }
       }
     }
@@ -285,6 +285,22 @@
           loadList(); // Reload the list after syncing
         } catch (err) {
           console.error('Failed to sync offline items', err);
+        }
+      }
+
+      // Sync any removed items from localStorage
+      const cachedList = JSON.parse(localStorage.getItem('cachedList')) || [];
+      if (cachedList.length > 0) {
+        try {
+          for (const item of cachedList) {
+            await fetch(`${apiUrl}/list`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text: item })
+            });
+          }
+        } catch (err) {
+          console.error('Failed to sync cached list', err);
         }
       }
     }
