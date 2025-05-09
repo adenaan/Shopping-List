@@ -243,11 +243,12 @@
         if (offlineRemovals.length > 0) {
             try {
                 for (const itemId of offlineRemovals) {
+                    console.log("Sending DELETE request for item ID:", itemId); // Log the ID being sent
                     const res = await fetch(`${apiUrl}/list/${itemId}`, { method: 'DELETE' });
                     if (res.ok) {
                         console.log("Offline removal synced to server:", itemId);
                     } else {
-                        console.error("Failed to remove item from server:", itemId);
+                        console.error("Failed to remove item from server. ID:", itemId, "Status:", res.status);
                     }
                 }
                 localStorage.removeItem('offlineRemovals'); // Clear offline removals after syncing
@@ -361,5 +362,4 @@
 
     loadList(); // Initial load of the list
 </script>
-</body>
 </html>
