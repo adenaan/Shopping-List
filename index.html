@@ -127,7 +127,7 @@
 
     // Render the list
     function renderList(items) {
-        listEl.innerHTML = '';
+        listEl.innerHTML = ''; // Clear any existing items in the list
         items.forEach((item, index) => addItemToDOM(item, index));
     }
 
@@ -154,9 +154,11 @@
                 });
 
                 if (res.ok) {
-                    console.log("Item added online:", text);
+                    const newItem = await res.json(); // Fetch and use the created item with its ID
+                    console.log("Item added online:", newItem);
+                    renderList([...JSON.parse(localStorage.getItem('cachedList')), newItem]); // Update UI locally
+                    localStorage.setItem('cachedList', JSON.stringify([...JSON.parse(localStorage.getItem('cachedList')), newItem])); // Cache the new item
                     input.value = '';
-                    loadList(); // Reload the list after adding
                 } else {
                     alert('Error adding item.');
                 }
@@ -197,7 +199,7 @@
             offlineRemovals.push(itemId); // Store the ID for later syncing
             localStorage.setItem('offlineRemovals', JSON.stringify(offlineRemovals));
 
-            loadList(); // Update the UI
+            renderList(updatedItems); // Update the UI
 
             if (navigator.onLine) {
                 console.log("Attempting immediate sync for removal...");
