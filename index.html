@@ -126,14 +126,14 @@
     // Render the list
     function renderList(items) {
       listEl.innerHTML = '';
-      items.forEach((item) => addItemToDOM(item));
+      items.forEach((item, index) => addItemToDOM(item, index));
     }
 
     // Add item to DOM
-    function addItemToDOM(item) {
+    function addItemToDOM(text, index) {
       const li = document.createElement('li');
-      li.innerHTML = `<span>${item.text}</span>
-        <button class="removeBtn" onclick="removeItem('${item.id}')">Remove</button>`;
+      li.innerHTML = `<span>${text}</span>
+        <button class="removeBtn" onclick="removeItem(${index})">Remove</button>`;
       listEl.appendChild(li);
     }
 
@@ -142,14 +142,12 @@
       const text = input.value.trim();
       if (!text) return;
 
-      const newItem = { text, id: uuid() };
-
       if (navigator.onLine) {
         try {
           const res = await fetch(`${apiUrl}/list`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newItem)
+            body: JSON.stringify({ text })
           });
 
           if (res.ok) {
@@ -164,17 +162,17 @@
       } else {
         // When offline, save item to localStorage for later syncing
         const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
-        offlineItems.push(newItem);
+        offlineItems.push(text);
         localStorage.setItem('offlineItems', JSON.stringify(offlineItems));
         loadList();
       }
     };
 
     // Remove item (online or offline)
-    async function removeItem(id) {
+    async function removeItem(index) {
       if (navigator.onLine) {
         try {
-          await fetch(`${apiUrl}/list/${id}`, { method: 'DELETE' });
+          await fetch(`${apiUrl}/list/${index}`, { method: 'DELETE' });
           loadList();
         } catch {
           alert('Error: Could not sync with server.');
@@ -183,8 +181,8 @@
         const cached = localStorage.getItem('cachedList');
         if (cached) {
           const items = JSON.parse(cached);
-          const updatedItems = items.filter(item => item.id !== id);
-          localStorage.setItem('cachedList', JSON.stringify(updatedItems));
+          items.splice(index, 1);
+          localStorage.setItem('cachedList', JSON.stringify(items));
           loadList();
         }
       }
@@ -245,12 +243,12 @@
       }
 
       for (const item of items) {
-        if (typeof item === 'object' && item.text && item.id) {
+        if (typeof item === 'string') {
           try {
             await fetch(`${apiUrl}/list`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(item)
+              body: JSON.stringify({ text: item })
             });
           } catch {
             alert('Error syncing imported items.');
@@ -279,7 +277,7 @@
             await fetch(`${apiUrl}/list`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(item)
+              body: JSON.stringify({ text: item })
             });
           }
           // After syncing, clear offline items
@@ -314,11 +312,6 @@
         installBtn.style.display = 'none';
       }
     });
-
-    // Generate a unique ID (for simplicity, we use Date.now())
-    function uuid() {
-      return Date.now().toString();
-    }
 
     loadList(); // Initial load of the list
   </script>
