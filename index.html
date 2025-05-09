@@ -167,8 +167,8 @@
         listEl.appendChild(li);
       }
 
-      // Function to remove an item
-      async function removeItem(index) {
+      // Define removeItem as a global function
+      window.removeItem = async function (index) {
         console.log("Removing item at index:", index);
 
         const cachedItems = JSON.parse(localStorage.getItem('cachedList')) || [];
@@ -201,7 +201,7 @@
           renderList([...cachedItems, ...offlineItems]);
           console.log("Item removed locally, and list updated.");
         }
-      }
+      };
 
       // Function to render the full list
       function renderList(items) {
