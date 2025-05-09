@@ -58,16 +58,6 @@
       gap: 10px;
       margin-top: 10px;
     }
-    #installBtn {
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      padding: 10px;
-      font-size: 1em;
-      margin-top: 15px;
-      display: none;
-    }
   </style>
 </head>
 <body>
@@ -86,33 +76,35 @@
     <button onclick="clearList()">Clear All</button>
   </div>
 
-  <!-- Install Button -->
-  <button id="installBtn">Install App</button>
-
   <script>
     const apiUrl = 'https://shoppinglistaddie.glitch.me';
     const input = document.getElementById('itemInput');
     const addBtn = document.getElementById('addBtn');
     const listEl = document.getElementById('list');
 
-    // Load list from localStorage or API
+    // Load the list either from localStorage (offline) or from the server (online)
     async function loadList() {
+      console.log('Loading list...');
+
       if (navigator.onLine) {
         try {
           const res = await fetch(`${apiUrl}/list`);
           const items = await res.json();
+          console.log('Fetched items from server:', items);
           localStorage.setItem('cachedList', JSON.stringify(items)); // Cache the list in localStorage
           renderList(items);
         } catch (err) {
+          console.error('Error fetching items from server:', err);
           const cached = localStorage.getItem('cachedList');
           if (cached) {
             const items = JSON.parse(cached);
             renderList(items);
           } else {
-            listEl.innerHTML = '<li>No items available.</li>';
+            listEl.innerHTML = '<li>No items available (no internet, no cache).</li>';
           }
         }
       } else {
+        console.log('Offline mode, loading from localStorage...');
         const cached = localStorage.getItem('cachedList');
         if (cached) {
           const items = JSON.parse(cached);
@@ -123,13 +115,13 @@
       }
     }
 
-    // Render the list
+    // Render the list of items
     function renderList(items) {
       listEl.innerHTML = '';
       items.forEach((item, index) => addItemToDOM(item, index));
     }
 
-    // Add item to DOM
+    // Add item to the DOM
     function addItemToDOM(text, index) {
       const li = document.createElement('li');
       li.innerHTML = `<span>${text}</span>
@@ -164,12 +156,14 @@
         const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
         offlineItems.push(text);
         localStorage.setItem('offlineItems', JSON.stringify(offlineItems));
+        console.log('Item saved offline:', text);
         loadList();
       }
     };
 
     // Remove item (online or offline)
     async function removeItem(index) {
+      console.log('Removing item:', index);
       if (navigator.onLine) {
         try {
           await fetch(`${apiUrl}/list/${index}`, { method: 'DELETE' });
@@ -190,6 +184,7 @@
 
     // Clear list (online or offline)
     async function clearList() {
+      console.log('Clearing the list...');
       if (!confirm('Are you sure you want to delete the entire list?')) return;
 
       if (navigator.onLine) {
@@ -259,21 +254,16 @@
       loadList();
     }
 
-    // Service Worker for offline caching
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/Shopping-List/service-worker.js')
-        .then(() => console.log('Service Worker registered'))
-        .catch(err => console.error('Service Worker registration failed:', err));
-    }
-
     // Sync offline items once the user comes online
     window.addEventListener('online', syncOfflineItems);
 
     async function syncOfflineItems() {
       const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
       if (offlineItems.length > 0) {
+        console.log('Syncing offline items...');
         try {
           for (const item of offlineItems) {
+            console.log('Syncing item:', item);
             await fetch(`${apiUrl}/list`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -286,34 +276,13 @@
         } catch (err) {
           console.error('Failed to sync offline items', err);
         }
+      } else {
+        console.log('No offline items to sync.');
       }
     }
 
-    // Handle Install Prompt
-    let deferredPrompt;
-    const installBtn = document.getElementById('installBtn');
-
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      installBtn.style.display = 'block';
-    });
-
-    installBtn.addEventListener('click', async () => {
-      if (deferredPrompt) {
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-          console.log('User accepted the install prompt');
-        } else {
-          console.log('User dismissed the install prompt');
-        }
-        deferredPrompt = null;
-        installBtn.style.display = 'none';
-      }
-    });
-
-    loadList(); // Initial load of the list
+    // Initial load of the list
+    loadList();
   </script>
 </body>
 </html>
