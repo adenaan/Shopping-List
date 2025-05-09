@@ -1,12 +1,10 @@
 const CACHE_NAME = 'shopping-list-cache-v1';
 const OFFLINE_URLS = [
-  
-  '/Shopping-List/', // adjust this if hosted at a subdirectory
+  '/Shopping-List/',
   'https://adenaan.github.io/Shopping-List/index.html',
   '/Shopping-List/icon-192.png',
   '/Shopping-List/manifest.json',
   '/Shopping-List/service-worker.js',
-  // add other necessary files like CSS, JS, etc.
 ];
 
 // Install event: cache the offline assets
@@ -31,8 +29,17 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const request = event.request;
 
-  // Handle only GET requests
+  // Only handle GET requests
   if (request.method !== 'GET') return;
+
+  // Do not cache non-HTTP(S) requests (e.g. chrome-extension://)
+  if (!request.url.startsWith('http')) return;
+
+  // Avoid caching the service worker script
+  if (request.url.includes('service-worker.js')) {
+    event.respondWith(fetch(request));
+    return;
+  }
 
   event.respondWith(
     caches.match(request).then(cachedResponse => {
@@ -42,14 +49,22 @@ self.addEventListener('fetch', event => {
 
       return fetch(request)
         .then(networkResponse => {
-          // Optionally cache new resources
-          return caches.open(CACHE_NAME).then(cache => {
-            cache.put(request, networkResponse.clone());
-            return networkResponse;
-          });
+          // Cache valid responses only
+          if (
+            networkResponse &&
+            networkResponse.status === 200 &&
+            networkResponse.type === 'basic'
+          ) {
+            return caches.open(CACHE_NAME).then(cache => {
+              cache.put(request, networkResponse.clone());
+              return networkResponse;
+            });
+          }
+
+          return networkResponse;
         })
         .catch(() => {
-          // fallback for navigations
+          // Fallback to offline HTML page for navigations
           if (request.mode === 'navigate') {
             return caches.match('/Shopping-List/index.html');
           }
