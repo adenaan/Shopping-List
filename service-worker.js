@@ -1,319 +1,59 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <link rel="manifest" href="/Shopping-List/manifest.json" />
-  <link rel="icon" href="/Shopping-List/icon-192.png" />
-  <meta name="theme-color" content="#4CAF50" />
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <link rel="apple-touch-icon" href="/Shopping-List/icon-192.png" />
-  <title>Shopping List (Cloud Sync)</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      padding: 20px;
-      background: #f7f7f7;
-    }
-    h1 {
-      text-align: center;
-    }
-    input, button {
-      padding: 10px;
-      font-size: 1em;
-      margin: 5px 0;
-    }
-    #itemInput {
-      width: 70%;
-    }
-    #addBtn {
-      width: 28%;
-    }
-    ul {
-      list-style: none;
-      padding: 0;
-    }
-    li {
-      background: white;
-      padding: 10px;
-      margin: 10px 0;
-      display: flex;
-      justify-content: space-between;
-      border-radius: 6px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .removeBtn {
-      background: red;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      padding: 5px 10px;
-    }
-    hr {
-      margin: 20px 0;
-    }
-    .control-buttons {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 10px;
-    }
-    #installBtn {
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      padding: 10px;
-      font-size: 1em;
-      margin-top: 15px;
-      display: none;
-    }
-  </style>
-</head>
-<body>
-  <h1>Shopping List By Addie</h1>
+const CACHE_NAME = 'shopping-list-cache-v1';
+const OFFLINE_URLS = [
+  
+  '/Shopping-List/', // adjust this if hosted at a subdirectory
+  'https://adenaan.github.io/Shopping-List/index.html',
+  '/Shopping-List/icon-192.png',
+  '/Shopping-List/manifest.json',
+  '/Shopping-List/service-worker.js',
+  // add other necessary files like CSS, JS, etc.
+];
 
-  <input id="itemInput" placeholder="Add item..." />
-  <button id="addBtn">Add</button>
+// Install event: cache the offline assets
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(OFFLINE_URLS))
+  );
+});
 
-  <ul id="list"></ul>
+// Activate event: clean up old caches
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(
+        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+      )
+    )
+  );
+});
 
-  <hr />
+// Fetch event: serve from cache, fallback to network
+self.addEventListener('fetch', event => {
+  const request = event.request;
 
-  <div class="control-buttons">
-    <button onclick="exportList()">Export List</button>
-    <input type="file" accept=".json" onchange="importList(event)" />
-    <button onclick="clearList()">Clear All</button>
-  </div>
+  // Handle only GET requests
+  if (request.method !== 'GET') return;
 
-  <!-- Install Button -->
-  <button id="installBtn">Install App</button>
-
-  <script>
-    const apiUrl = 'https://shoppinglistaddie.glitch.me';
-    const input = document.getElementById('itemInput');
-    const addBtn = document.getElementById('addBtn');
-    const listEl = document.getElementById('list');
-
-    // Load list from localStorage or API
-    async function loadList() {
-      if (navigator.onLine) {
-        try {
-          const res = await fetch(`${apiUrl}/list`);
-          const items = await res.json();
-          localStorage.setItem('cachedList', JSON.stringify(items)); // Cache the list in localStorage
-          renderList(items);
-        } catch (err) {
-          const cached = localStorage.getItem('cachedList');
-          if (cached) {
-            const items = JSON.parse(cached);
-            renderList(items);
-          } else {
-            listEl.innerHTML = '<li>No items available.</li>';
-          }
-        }
-      } else {
-        const cached = localStorage.getItem('cachedList');
-        if (cached) {
-          const items = JSON.parse(cached);
-          renderList(items);
-        } else {
-          listEl.innerHTML = '<li>No items available (Offline mode).</li>';
-        }
+  event.respondWith(
+    caches.match(request).then(cachedResponse => {
+      if (cachedResponse) {
+        return cachedResponse;
       }
-    }
 
-    // Render the list
-    function renderList(items) {
-      listEl.innerHTML = '';
-      items.forEach((item, index) => addItemToDOM(item, index));
-    }
-
-    // Add item to DOM
-    function addItemToDOM(text, index) {
-      const li = document.createElement('li');
-      li.innerHTML = `<span>${text}</span>
-        <button class="removeBtn" onclick="removeItem(${index})">Remove</button>`;
-      listEl.appendChild(li);
-    }
-
-    // Add item (online or offline)
-    addBtn.onclick = async () => {
-      const text = input.value.trim();
-      if (!text) return;
-
-      if (navigator.onLine) {
-        try {
-          const res = await fetch(`${apiUrl}/list`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text })
+      return fetch(request)
+        .then(networkResponse => {
+          // Optionally cache new resources
+          return caches.open(CACHE_NAME).then(cache => {
+            cache.put(request, networkResponse.clone());
+            return networkResponse;
           });
-
-          if (res.ok) {
-            input.value = '';
-            loadList(); // Reload the list after adding
-          } else {
-            alert('Error adding item.');
+        })
+        .catch(() => {
+          // fallback for navigations
+          if (request.mode === 'navigate') {
+            return caches.match('/Shopping-List/index.html');
           }
-        } catch {
-          alert('Error: Could not sync with server.');
-        }
-      } else {
-        // When offline, save item to localStorage for later syncing
-        const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
-        offlineItems.push(text);
-        localStorage.setItem('offlineItems', JSON.stringify(offlineItems));
-        loadList();
-      }
-    };
-
-    // Remove item (online or offline)
-    async function removeItem(index) {
-      if (navigator.onLine) {
-        try {
-          await fetch(`${apiUrl}/list/${index}`, { method: 'DELETE' });
-          loadList();
-        } catch {
-          alert('Error: Could not sync with server.');
-        }
-      } else {
-        const cached = localStorage.getItem('cachedList');
-        if (cached) {
-          const items = JSON.parse(cached);
-          items.splice(index, 1);
-          localStorage.setItem('cachedList', JSON.stringify(items));
-          loadList();
-        }
-      }
-    }
-
-    // Clear list (online or offline)
-    async function clearList() {
-      if (!confirm('Are you sure you want to delete the entire list?')) return;
-
-      if (navigator.onLine) {
-        try {
-          await fetch(`${apiUrl}/list`, { method: 'DELETE' });
-          loadList();
-        } catch {
-          alert('Error: Could not sync with server.');
-        }
-      } else {
-        localStorage.removeItem('cachedList');
-        loadList();
-      }
-    }
-
-    // Export list to JSON
-    async function exportList() {
-      if (navigator.onLine) {
-        try {
-          const res = await fetch(`${apiUrl}/list`);
-          const data = await res.json();
-          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'shopping-list.json';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        } catch {
-          alert('Error exporting list.');
-        }
-      } else {
-        alert('Cannot export while offline.');
-      }
-    }
-
-    // Import list from JSON
-    async function importList(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const text = await file.text();
-      let items;
-      try {
-        items = JSON.parse(text);
-        if (!Array.isArray(items)) throw new Error("Invalid list format.");
-      } catch (err) {
-        alert('Invalid JSON file.');
-        return;
-      }
-
-      for (const item of items) {
-        if (typeof item === 'string') {
-          try {
-            await fetch(`${apiUrl}/list`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ text: item })
-            });
-          } catch {
-            alert('Error syncing imported items.');
-          }
-        }
-      }
-
-      loadList();
-    }
-
-    // Service Worker for offline caching
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/Shopping-List/service-worker.js')
-        .then(() => console.log('Service Worker registered'))
-        .catch(err => console.error('Service Worker registration failed:', err));
-    }
-
-    // Sync offline items once the user comes online
-    window.addEventListener('online', syncOfflineItems);
-
-    async function syncOfflineItems() {
-      const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
-      if (offlineItems.length > 0) {
-        try {
-          for (const item of offlineItems) {
-            await fetch(`${apiUrl}/list`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ text: item })
-            });
-          }
-          // After syncing, clear offline items
-          localStorage.removeItem('offlineItems');
-          loadList(); // Reload the list after syncing
-        } catch (err) {
-          console.error('Failed to sync offline items', err);
-        }
-      }
-    }
-
-    // Handle Install Prompt
-    let deferredPrompt;
-    const installBtn = document.getElementById('installBtn');
-
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      installBtn.style.display = 'block';
-    });
-
-    installBtn.addEventListener('click', async () => {
-      if (deferredPrompt) {
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-          console.log('User accepted the install prompt');
-        } else {
-          console.log('User dismissed the install prompt');
-        }
-        deferredPrompt = null;
-        installBtn.style.display = 'none';
-      }
-    });
-
-    loadList(); // Initial load of the list
-  </script>
-</body>
-</html>
+        });
+    })
+  );
+});
