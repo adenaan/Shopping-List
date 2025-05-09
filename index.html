@@ -132,6 +132,7 @@
 
     // Add item to DOM
     function addItemToDOM(item, index) {
+        console.log("Adding item to DOM. Text:", item.text, "Index:", index);
         const li = document.createElement('li');
         li.innerHTML = `<span>${item.text}</span>
             <button class="removeBtn" onclick="removeItem('${item.id}')">Remove</button>`;
