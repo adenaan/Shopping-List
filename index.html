@@ -98,24 +98,20 @@
   // Load list from localStorage or API
   async function loadList() {
     const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
+    const cachedItems = JSON.parse(localStorage.getItem('cachedList')) || [];
+
     if (navigator.onLine) {
       try {
         const res = await fetch(`${apiUrl}/list`);
-        const items = await res.json();
-        localStorage.setItem('cachedList', JSON.stringify(items)); // Cache the list in localStorage
-        renderList([...items, ...offlineItems]); // Combine online and offline items
+        const onlineItems = await res.json();
+        localStorage.setItem('cachedList', JSON.stringify(onlineItems)); // Update cached list
+        renderList([...onlineItems, ...offlineItems]); // Combine online and offline items
       } catch (err) {
-        const cached = localStorage.getItem('cachedList');
-        if (cached) {
-          const items = JSON.parse(cached);
-          renderList([...items, ...offlineItems]); // Combine cached and offline items
-        } else {
-          renderList(offlineItems); // Only render offline items
-        }
+        console.error('Error fetching online items:', err);
+        renderList([...cachedItems, ...offlineItems]); // Use cached and offline items
       }
     } else {
-      const cached = JSON.parse(localStorage.getItem('cachedList')) || [];
-      renderList([...cached, ...offlineItems]); // Combine cached and offline items
+      renderList([...cachedItems, ...offlineItems]); // Use cached and offline items
     }
   }
 
@@ -161,9 +157,8 @@
       offlineItems.push(text);
       localStorage.setItem('offlineItems', JSON.stringify(offlineItems));
 
-      // Get cached items and merge with offline items
-      const cached = JSON.parse(localStorage.getItem('cachedList')) || [];
-      renderList([...cached, ...offlineItems]); // Re-render the list with the combined items
+      // Update the UI immediately with the new offline item
+      addItemToDOM(text, offlineItems.length - 1); // Add only the new item to the DOM
 
       input.value = ''; // Clear input
     }
@@ -179,16 +174,18 @@
         alert('Error: Could not sync with server.');
       }
     } else {
-      const cached = JSON.parse(localStorage.getItem('cachedList')) || [];
+      const cachedItems = JSON.parse(localStorage.getItem('cachedList')) || [];
       const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
-      if (index < cached.length) {
-        cached.splice(index, 1);
-        localStorage.setItem('cachedList', JSON.stringify(cached));
+
+      if (index < cachedItems.length) {
+        cachedItems.splice(index, 1);
+        localStorage.setItem('cachedList', JSON.stringify(cachedItems));
       } else {
-        offlineItems.splice(index - cached.length, 1);
+        offlineItems.splice(index - cachedItems.length, 1);
         localStorage.setItem('offlineItems', JSON.stringify(offlineItems));
       }
-      renderList([...cached, ...offlineItems]); // Re-render the updated list
+
+      renderList([...cachedItems, ...offlineItems]); // Re-render the updated list
     }
   }
 
