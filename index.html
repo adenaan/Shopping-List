@@ -101,6 +101,7 @@
             try {
                 const res = await fetch(`${apiUrl}/list`);
                 const items = await res.json();
+                console.log("Fetched list from server:", items);
                 localStorage.setItem('cachedList', JSON.stringify(items)); // Cache the list in localStorage
                 renderList(items);
             } catch (err) {
@@ -116,6 +117,7 @@
         const cached = localStorage.getItem('cachedList');
         if (cached) {
             const items = JSON.parse(cached);
+            console.log("Using cached list:", items);
             renderList(items);
         } else {
             listEl.innerHTML = '<li>No items available (Offline mode).</li>';
@@ -183,7 +185,7 @@
 
             // Track the removal offline regardless of online status
             const offlineRemovals = JSON.parse(localStorage.getItem('offlineRemovals')) || [];
-            offlineRemovals.push(index); // Store the index for later syncing
+            offlineRemovals.push(removedItem); // Store the item for later syncing
             localStorage.setItem('offlineRemovals', JSON.stringify(offlineRemovals));
 
             loadList(); // Update the UI
@@ -228,12 +230,16 @@
         const offlineRemovals = JSON.parse(localStorage.getItem('offlineRemovals')) || [];
         if (offlineRemovals.length > 0) {
             try {
-                const cachedList = JSON.parse(localStorage.getItem('cachedList')) || [];
-                for (const index of offlineRemovals) {
-                    const itemToRemove = cachedList[index];
-                    if (itemToRemove) {
-                        await fetch(`${apiUrl}/list/${index}`, { method: 'DELETE' });
-                        console.log("Offline removal synced to server:", itemToRemove);
+                for (const removedItem of offlineRemovals) {
+                    const res = await fetch(`${apiUrl}/list`, {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: removedItem })
+                    });
+                    if (res.ok) {
+                        console.log("Offline removal synced to server:", removedItem);
+                    } else {
+                        console.error("Failed to remove item from server:", removedItem);
                     }
                 }
                 localStorage.removeItem('offlineRemovals'); // Clear offline removals after syncing
