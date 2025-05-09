@@ -94,6 +94,7 @@
     const input = document.getElementById('itemInput');
     const addBtn = document.getElementById('addBtn');
     const listEl = document.getElementById('list');
+    const installBtn = document.getElementById('installBtn');
 
     // Load list from localStorage or API
     async function loadList() {
@@ -338,7 +339,6 @@
 
     // Handle Install Prompt
     let deferredPrompt;
-    const installBtn = document.getElementById('installBtn');
 
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
