@@ -1,6 +1,6 @@
 const CACHE_NAME = 'shopping-list-cache-v1';
 const OFFLINE_URLS = [
-  '/',
+  
   '/Shopping-List/', // adjust this if hosted at a subdirectory
   'https://adenaan.github.io/Shopping-List/index.html',
   '/Shopping-List/icon-192.png',
