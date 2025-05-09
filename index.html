@@ -185,15 +185,21 @@
           }
         } else {
           console.log("You are offline. Removing item locally...");
+
+          // Handle removal from cached and offline items
           if (index < cachedItems.length) {
+            console.log("Removing item from cached items...");
             cachedItems.splice(index, 1);
             localStorage.setItem('cachedList', JSON.stringify(cachedItems));
           } else {
+            console.log("Removing item from offline items...");
             offlineItems.splice(index - cachedItems.length, 1);
             localStorage.setItem('offlineItems', JSON.stringify(offlineItems));
           }
 
-          renderList([...cachedItems, ...offlineItems]); // Re-render the updated list
+          // Combine and re-render the updated list
+          renderList([...cachedItems, ...offlineItems]);
+          console.log("Item removed locally, and list updated.");
         }
       }
 
