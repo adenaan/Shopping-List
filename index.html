@@ -97,16 +97,13 @@
 
     // Load list from localStorage or API
     async function loadList() {
-      console.log('Loading list...');
       if (navigator.onLine) {
-        console.log('You are online!');
         try {
           const res = await fetch(`${apiUrl}/list`);
           const items = await res.json();
           localStorage.setItem('cachedList', JSON.stringify(items)); // Cache the list in localStorage
           renderList(items);
         } catch (err) {
-          console.error('Failed to load from server:', err);
           const cached = localStorage.getItem('cachedList');
           if (cached) {
             const items = JSON.parse(cached);
@@ -116,7 +113,6 @@
           }
         }
       } else {
-        console.log('You are offline!');
         const cached = localStorage.getItem('cachedList');
         if (cached) {
           const items = JSON.parse(cached);
@@ -129,91 +125,67 @@
 
     // Render the list
     function renderList(items) {
-      console.log('Rendering list...');
       listEl.innerHTML = '';
-      items.forEach((item, index) => addItemToDOM(item, index));
+      items.forEach((item) => addItemToDOM(item));
     }
 
     // Add item to DOM
-    function addItemToDOM(text, index) {
+    function addItemToDOM(item) {
       const li = document.createElement('li');
-      li.innerHTML = `<span>${text}</span>
-        <button class="removeBtn" onclick="removeItem(${index})">Remove</button>`;
+      li.innerHTML = `<span>${item.text}</span>
+        <button class="removeBtn" onclick="removeItem('${item.id}')">Remove</button>`;
       listEl.appendChild(li);
     }
 
     // Add item (online or offline)
     addBtn.onclick = async () => {
       const text = input.value.trim();
-      console.log('Add button clicked!');
-      if (!text) {
-        console.log('No item to add!');
-        return;
-      }
+      if (!text) return;
+
+      const newItem = { text, id: uuid() };
 
       if (navigator.onLine) {
-        console.log('You are online, syncing item...');
         try {
           const res = await fetch(`${apiUrl}/list`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text })
+            body: JSON.stringify(newItem)
           });
 
           if (res.ok) {
-            console.log('Item added to server');
             input.value = '';
             loadList(); // Reload the list after adding
           } else {
             alert('Error adding item.');
           }
-        } catch (err) {
-          console.error('Error while adding item:', err);
+        } catch {
           alert('Error: Could not sync with server.');
         }
       } else {
         // When offline, save item to localStorage for later syncing
-        console.log('Offline mode, saving item locally');
         const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
-        offlineItems.push(text);
+        offlineItems.push(newItem);
         localStorage.setItem('offlineItems', JSON.stringify(offlineItems));
         loadList();
       }
     };
 
     // Remove item (online or offline)
-    async function removeItem(index) {
-      console.log('Removing item:', index);
+    async function removeItem(id) {
       if (navigator.onLine) {
-        console.log('You are online, removing item...');
         try {
-          const res = await fetch(`${apiUrl}/list/${index}`, { method: 'DELETE' });
-
-          if (res.ok) {
-            console.log('Item removed from server');
-            loadList(); // Reload the list after removing
-          } else {
-            alert('Error removing item.');
-          }
-        } catch (err) {
-          console.error('Error while removing item:', err);
+          await fetch(`${apiUrl}/list/${id}`, { method: 'DELETE' });
+          loadList();
+        } catch {
           alert('Error: Could not sync with server.');
         }
       } else {
-        // When offline, remove the item from the local list and store the index for future sync
-        console.log('Offline mode, removing item locally');
         const cached = localStorage.getItem('cachedList');
         if (cached) {
           const items = JSON.parse(cached);
-          items.splice(index, 1); // Remove item locally
-          localStorage.setItem('cachedList', JSON.stringify(items));
-
-          // Store the index of removed item for syncing later
-          const offlineDeletions = JSON.parse(localStorage.getItem('offlineDeletions')) || [];
-          offlineDeletions.push(index);
-          localStorage.setItem('offlineDeletions', JSON.stringify(offlineDeletions));
-
-          loadList(); // Reload the list after removal
+          const updatedItems = items.filter(item => item.id !== id);
+          localStorage.setItem('cachedList', JSON.stringify(updatedItems));
+          loadList();
         }
       }
     }
@@ -224,15 +196,12 @@
 
       if (navigator.onLine) {
         try {
-          console.log('You are online, clearing list...');
           await fetch(`${apiUrl}/list`, { method: 'DELETE' });
           loadList();
-        } catch (err) {
-          console.error('Error clearing list:', err);
+        } catch {
           alert('Error: Could not sync with server.');
         }
       } else {
-        console.log('Offline mode, clearing list locally');
         localStorage.removeItem('cachedList');
         loadList();
       }
@@ -242,7 +211,6 @@
     async function exportList() {
       if (navigator.onLine) {
         try {
-          console.log('Exporting list...');
           const res = await fetch(`${apiUrl}/list`);
           const data = await res.json();
           const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -254,8 +222,7 @@
           a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
-        } catch (err) {
-          console.error('Error exporting list:', err);
+        } catch {
           alert('Error exporting list.');
         }
       } else {
@@ -273,21 +240,19 @@
         items = JSON.parse(text);
         if (!Array.isArray(items)) throw new Error("Invalid list format.");
       } catch (err) {
-        console.error('Invalid JSON file:', err);
         alert('Invalid JSON file.');
         return;
       }
 
       for (const item of items) {
-        if (typeof item === 'string') {
+        if (typeof item === 'object' && item.text && item.id) {
           try {
             await fetch(`${apiUrl}/list`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ text: item })
+              body: JSON.stringify(item)
             });
-          } catch (err) {
-            console.error('Error syncing imported items:', err);
+          } catch {
             alert('Error syncing imported items.');
           }
         }
@@ -307,37 +272,21 @@
     window.addEventListener('online', syncOfflineItems);
 
     async function syncOfflineItems() {
-      console.log('You are online! Syncing offline items...');
       const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
       if (offlineItems.length > 0) {
-        console.log('Syncing offline items...');
         try {
           for (const item of offlineItems) {
             await fetch(`${apiUrl}/list`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ text: item })
+              body: JSON.stringify(item)
             });
           }
+          // After syncing, clear offline items
           localStorage.removeItem('offlineItems');
           loadList(); // Reload the list after syncing
         } catch (err) {
-          console.error('Failed to sync offline items:', err);
-        }
-      }
-
-      // Sync offline deletions once the user comes online
-      const offlineDeletions = JSON.parse(localStorage.getItem('offlineDeletions')) || [];
-      if (offlineDeletions.length > 0) {
-        console.log('Syncing offline deletions...');
-        try {
-          for (const index of offlineDeletions) {
-            await fetch(`${apiUrl}/list/${index}`, { method: 'DELETE' });
-          }
-          localStorage.removeItem('offlineDeletions');
-          loadList(); // Reload the list after syncing
-        } catch (err) {
-          console.error('Failed to sync offline deletions:', err);
+          console.error('Failed to sync offline items', err);
         }
       }
     }
@@ -365,6 +314,11 @@
         installBtn.style.display = 'none';
       }
     });
+
+    // Generate a unique ID (for simplicity, we use Date.now())
+    function uuid() {
+      return Date.now().toString();
+    }
 
     loadList(); // Initial load of the list
   </script>
