@@ -134,10 +134,11 @@
         const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
         offlineItems.push(text);
         localStorage.setItem('offlineItems', JSON.stringify(offlineItems));
-        console.log("Item saved offline:", text);
+        console.log("Item saved offline:", text, "Updated offlineItems:", offlineItems);
 
-        // Append the item to the DOM
+        // Append the item to the DOM immediately
         addItemToDOM(text, listEl.children.length);
+        console.log("Item added to DOM in offline mode.");
       } catch (error) {
         console.error("Error adding item offline:", error);
       }
