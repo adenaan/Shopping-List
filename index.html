@@ -164,11 +164,12 @@
         const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
         offlineItems.push(text);
         localStorage.setItem('offlineItems', JSON.stringify(offlineItems));
+        
+        // Add item to the UI immediately
+        const cached = JSON.parse(localStorage.getItem('offlineItems'));
+        renderList(cached); // Re-render the list with the new offline item
 
-        // Immediately update the UI by adding the item to the list
-        addItemToDOM(text, offlineItems.length - 1);
-
-        input.value = ''; // Clear the input field
+        input.value = ''; // Clear input
       }
     };
 
