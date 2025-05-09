@@ -90,148 +90,148 @@
   <button id="installBtn">Install App</button>
 
   <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    console.log("Script loaded and DOM fully parsed.");
+    document.addEventListener("DOMContentLoaded", () => {
+      console.log("Script loaded and DOM fully parsed.");
 
-    const apiUrl = 'https://shoppinglistaddie.glitch.me';
-    const input = document.getElementById('itemInput');
-    const addBtn = document.getElementById('addBtn');
-    const listEl = document.getElementById('list');
+      const apiUrl = 'https://shoppinglistaddie.glitch.me';
+      const input = document.getElementById('itemInput');
+      const addBtn = document.getElementById('addBtn');
+      const listEl = document.getElementById('list');
 
-    if (!addBtn) {
-      console.error("Add button not found in the DOM.");
-      return;
-    }
-
-    console.log("Add button successfully found:", addBtn);
-
-    // Function to add item (online or offline)
-    addBtn.addEventListener("click", async () => {
-      console.log("Add button clicked.");
-
-      const text = input.value.trim();
-      if (!text) {
-        console.warn("Input is empty. No item to add.");
-        return; // Exit if input is empty
+      if (!addBtn) {
+        console.error("Add button not found in the DOM.");
+        return;
       }
 
-      console.log("Adding item:", text);
+      console.log("Add button successfully found:", addBtn);
 
-      if (navigator.onLine) {
-        console.log("You are online. Attempting to add item to the server...");
-        try {
-          const res = await fetch(`${apiUrl}/list`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text })
-          });
+      // Function to add item (online or offline)
+      addBtn.addEventListener("click", async () => {
+        console.log("Add button clicked.");
 
-          if (!res.ok) {
-            console.error("Failed to add item online. Server responded with error.");
-            throw new Error("Error adding item online.");
+        const text = input.value.trim();
+        if (!text) {
+          console.warn("Input is empty. No item to add.");
+          return; // Exit if input is empty
+        }
+
+        console.log("Adding item:", text);
+
+        if (navigator.onLine) {
+          console.log("You are online. Attempting to add item to the server...");
+          try {
+            const res = await fetch(`${apiUrl}/list`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text })
+            });
+
+            if (!res.ok) {
+              console.error("Failed to add item online. Server responded with error.");
+              throw new Error("Error adding item online.");
+            }
+
+            console.log("Item added successfully online:", text);
+            addItemToDOM(text, listEl.children.length); // Display the item in the list
+          } catch (error) {
+            console.error("Error adding item online:", error);
+            alert('Error adding item online. Please try again.');
+          }
+        } else {
+          console.log("You are offline. Adding item to local storage...");
+          try {
+            // Save the item in offline storage
+            const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
+            offlineItems.push(text);
+            localStorage.setItem('offlineItems', JSON.stringify(offlineItems));
+            console.log("Item saved offline:", text, "Updated offlineItems:", offlineItems);
+
+            // Append the item to the DOM immediately
+            addItemToDOM(text, listEl.children.length);
+            console.log("Item added to DOM in offline mode.");
+          } catch (error) {
+            console.error("Error adding item offline:", error);
+          }
+        }
+
+        input.value = ''; // Clear the input field
+      });
+
+      // Function to add item to the DOM
+      function addItemToDOM(text, index) {
+        console.log("Adding item to DOM. Text:", text, "Index:", index);
+
+        const li = document.createElement('li');
+        li.innerHTML = `<span>${text}</span>
+          <button class="removeBtn" onclick="removeItem(${index})">Remove</button>`;
+        listEl.appendChild(li);
+      }
+
+      // Function to remove an item
+      async function removeItem(index) {
+        console.log("Removing item at index:", index);
+
+        const cachedItems = JSON.parse(localStorage.getItem('cachedList')) || [];
+        const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
+
+        if (navigator.onLine) {
+          console.log("You are online. Attempting to remove item from server...");
+          try {
+            await fetch(`${apiUrl}/list/${index}`, { method: 'DELETE' });
+            loadList(); // Reload the list
+          } catch (error) {
+            console.error("Error removing item online:", error);
+            alert('Error: Could not sync with server.');
+          }
+        } else {
+          console.log("You are offline. Removing item locally...");
+          if (index < cachedItems.length) {
+            cachedItems.splice(index, 1);
+            localStorage.setItem('cachedList', JSON.stringify(cachedItems));
+          } else {
+            offlineItems.splice(index - cachedItems.length, 1);
+            localStorage.setItem('offlineItems', JSON.stringify(offlineItems));
           }
 
-          console.log("Item added successfully online:", text);
-          addItemToDOM(text, listEl.children.length); // Display the item in the list
-        } catch (error) {
-          console.error("Error adding item online:", error);
-          alert('Error adding item online. Please try again.');
-        }
-      } else {
-        console.log("You are offline. Adding item to local storage...");
-        try {
-          // Save the item in offline storage
-          const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
-          offlineItems.push(text);
-          localStorage.setItem('offlineItems', JSON.stringify(offlineItems));
-          console.log("Item saved offline:", text, "Updated offlineItems:", offlineItems);
-
-          // Append the item to the DOM immediately
-          addItemToDOM(text, listEl.children.length);
-          console.log("Item added to DOM in offline mode.");
-        } catch (error) {
-          console.error("Error adding item offline:", error);
+          renderList([...cachedItems, ...offlineItems]); // Re-render the updated list
         }
       }
 
-      input.value = ''; // Clear the input field
-    });
+      // Function to render the full list
+      function renderList(items) {
+        console.log("Rendering list. Items:", items);
 
-    // Function to add item to the DOM
-    function addItemToDOM(text, index) {
-      console.log("Adding item to DOM. Text:", text, "Index:", index);
+        listEl.innerHTML = '';
+        items.forEach((item, index) => addItemToDOM(item, index));
+      }
 
-      const li = document.createElement('li');
-      li.innerHTML = `<span>${text}</span>
-        <button class="removeBtn" onclick="removeItem(${index})">Remove</button>`;
-      listEl.appendChild(li);
-    }
+      // Function to load the list from localStorage or API
+      async function loadList() {
+        console.log("Loading list...");
 
-    // Function to remove an item
-    async function removeItem(index) {
-      console.log("Removing item at index:", index);
+        const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
+        const cachedItems = JSON.parse(localStorage.getItem('cachedList')) || [];
 
-      const cachedItems = JSON.parse(localStorage.getItem('cachedList')) || [];
-      const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
-
-      if (navigator.onLine) {
-        console.log("You are online. Attempting to remove item from server...");
-        try {
-          await fetch(`${apiUrl}/list/${index}`, { method: 'DELETE' });
-          loadList(); // Reload the list
-        } catch (error) {
-          console.error("Error removing item online:", error);
-          alert('Error: Could not sync with server.');
-        }
-      } else {
-        console.log("You are offline. Removing item locally...");
-        if (index < cachedItems.length) {
-          cachedItems.splice(index, 1);
-          localStorage.setItem('cachedList', JSON.stringify(cachedItems));
+        if (navigator.onLine) {
+          console.log("You are online. Fetching list from the server...");
+          try {
+            const res = await fetch(`${apiUrl}/list`);
+            const onlineItems = await res.json();
+            localStorage.setItem('cachedList', JSON.stringify(onlineItems)); // Cache the list
+            renderList([...onlineItems, ...offlineItems]); // Combine online and offline items
+          } catch (error) {
+            console.error("Error fetching list from server:", error);
+            renderList([...cachedItems, ...offlineItems]); // Use cached and offline items
+          }
         } else {
-          offlineItems.splice(index - cachedItems.length, 1);
-          localStorage.setItem('offlineItems', JSON.stringify(offlineItems));
-        }
-
-        renderList([...cachedItems, ...offlineItems]); // Re-render the updated list
-      }
-    }
-
-    // Function to render the full list
-    function renderList(items) {
-      console.log("Rendering list. Items:", items);
-
-      listEl.innerHTML = '';
-      items.forEach((item, index) => addItemToDOM(item, index));
-    }
-
-    // Function to load the list from localStorage or API
-    async function loadList() {
-      console.log("Loading list...");
-
-      const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
-      const cachedItems = JSON.parse(localStorage.getItem('cachedList')) || [];
-
-      if (navigator.onLine) {
-        console.log("You are online. Fetching list from the server...");
-        try {
-          const res = await fetch(`${apiUrl}/list`);
-          const onlineItems = await res.json();
-          localStorage.setItem('cachedList', JSON.stringify(onlineItems)); // Cache the list
-          renderList([...onlineItems, ...offlineItems]); // Combine online and offline items
-        } catch (error) {
-          console.error("Error fetching list from server:", error);
+          console.log("You are offline. Using cached and offline items.");
           renderList([...cachedItems, ...offlineItems]); // Use cached and offline items
         }
-      } else {
-        console.log("You are offline. Using cached and offline items.");
-        renderList([...cachedItems, ...offlineItems]); // Use cached and offline items
       }
-    }
 
-    // Initial load of the list
-    loadList();
-  });
-</script>
+      // Initial load of the list
+      loadList();
+    });
+  </script>
 </body>
 </html>
