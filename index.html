@@ -272,7 +272,7 @@
       listEl.innerHTML = "";
 
       // Create new list items
-      for (const item of items) {
+      items.forEach(item => {
         const li = document.createElement("li");
         li.innerHTML = `<span>${item.text} - <strong>${item.category}</strong></span>`;
         const button = document.createElement("button");
@@ -281,9 +281,9 @@
         button.dataset.id = item.id;
         li.appendChild(button);
         listEl.appendChild(li);
-      }
+      });
 
-      console.log("Updated UI with items.");
+      console.log("UI updated with items.");
     }
 
     // Event delegation for remove buttons
@@ -299,20 +299,20 @@
 
       const isOfflineItem = itemId.startsWith("offline-");
 
-      // Handle offline removal
-      if (!navigator.onLine || isOfflineItem) {
+      // Update the cached list and UI immediately
+      let cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+      cachedList = cachedList.filter(item => item.id !== itemId);
+      localStorage.setItem("cachedList", JSON.stringify(cachedList));
+      renderList(cachedList); // Update the UI immediately
+      console.log("Updated cachedList:", cachedList);
+
+      // If offline, queue the removal for syncing later
+      if (!navigator.onLine) {
         console.log("Offline mode detected. Queuing removal.");
         const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
         offlineRemovals.push(itemId);
         localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
-
-        // Update UI immediately
-        let cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-        cachedList = cachedList.filter(item => item.id !== itemId);
-        localStorage.setItem("cachedList", JSON.stringify(cachedList));
-        console.log("Updated cachedList (offline):", cachedList);
-
-        renderList(cachedList);
+        console.log("Queued for offline removal:", offlineRemovals);
         return;
       }
 
@@ -323,16 +323,10 @@
         if (!res.ok) {
           throw new Error("Failed to delete item on server.");
         }
-        console.log("Server confirmed deletion of item with ID:", itemId);
-
-        let cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-        cachedList = cachedList.filter(item => item.id !== itemId);
-        localStorage.setItem("cachedList", JSON.stringify(cachedList));
-        console.log("Updated cachedList (online):", cachedList);
-
-        renderList(cachedList);
+        console.log(`Server confirmed deletion of item with ID: ${itemId}`);
       } catch (err) {
         console.error("Error removing item from server:", err);
+        alert("Server error: Failed to remove item. Please try again.");
       }
     }
 
