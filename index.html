@@ -229,7 +229,6 @@ window.addEventListener('online', syncOfflineChanges);
 async function syncOfflineChanges() {
   console.log("Syncing offline changes...");
 
-  // Sync offline additions
   const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
   const syncedIdsMap = {}; // Map offline IDs to server IDs
   for (const item of offlineItems) {
@@ -250,9 +249,8 @@ async function syncOfflineChanges() {
   }
   localStorage.removeItem("offlineItems");
 
-  // Sync offline removals
   const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
-  const validRemovals = offlineRemovals.map((id) => syncedIdsMap[id] || id); // Replace offline IDs with server IDs
+  const validRemovals = offlineRemovals.map((id) => syncedIdsMap[id] || id);
   for (const id of validRemovals) {
     try {
       const res = await fetch(`${apiUrl}/list/${id}`, { method: "DELETE" });
@@ -263,11 +261,9 @@ async function syncOfflineChanges() {
   }
   localStorage.removeItem("offlineRemovals");
 
-  // Reload list
   loadList();
 }
 
-// Shopping List Logic
 async function loadList() {
   if (navigator.onLine) {
     try {
@@ -293,27 +289,14 @@ function useCachedList() {
 
 function renderList(items) {
   console.log("Rendering list with items:", items);
-
-  // Generate HTML for the list
   const html = items.map((item) => createListItemHTML(item)).join("");
   listEl.innerHTML = html;
-
-  // Log the final rendered HTML
-  console.log("Rendered HTML after rendering:", html);
+  console.log("Rendered HTML:", html);
 }
 
 function createListItemHTML(item) {
-  const html = `<li><span>${item.text} - <strong>${item.category}</strong></span>
-                <button class="removeBtn" onclick="removeItem('${item.id}')">Remove</button></li>`;
-  console.log("Generated HTML for item:", html);
-  return html;
-}
-
-function addItemToDOM(item) {
-  const li = document.createElement("li");
-  li.innerHTML = `<span>${item.text} - <strong>${item.category}</strong></span>
-                  <button class="removeBtn" onclick="removeItem('${item.id}')">Remove</button>`;
-  listEl.appendChild(li);
+  return `<li><span>${item.text} - <strong>${item.category}</strong></span>
+          <button class="removeBtn" onclick="removeItem('${item.id}')">Remove</button></li>`;
 }
 
 addBtn.onclick = async () => {
@@ -345,51 +328,33 @@ addBtn.onclick = async () => {
     const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
     offlineItems.push(newItem);
     localStorage.setItem("offlineItems", JSON.stringify(offlineItems));
-    addItemToDOM(newItem);
+    const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+    cachedList.push(newItem);
+    renderList(cachedList);
     input.value = "";
   }
 };
 
 async function removeItem(itemId) {
   console.log("Removing item with ID:", itemId);
-
-  // Retrieve cached list from localStorage
   const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-  console.log("Cached list before removal:", cachedList);
-
-  // Filter the list to exclude the removed item
   const updatedList = cachedList.filter((item) => item.id !== itemId);
-  console.log("Updated list after removal:", updatedList);
-
-  // Update localStorage with the updated list
   localStorage.setItem("cachedList", JSON.stringify(updatedList));
-  console.log("Updated cached list in localStorage:", JSON.parse(localStorage.getItem("cachedList")));
-
-  // Immediately update the UI with the updated list
-  console.log("Calling renderList with updated list...");
   renderList(updatedList);
 
-  // Queue the removal for offline syncing, if necessary
   const isOfflineItem = itemId.startsWith("offline-");
   if (!navigator.onLine || isOfflineItem) {
-    console.log("Offline mode detected. Queueing removal...");
     const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
     offlineRemovals.push(itemId);
     localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
-    console.log("Offline removal queued:", itemId);
     return;
   }
 
-  // If online and valid server ID, attempt to delete from the server
   try {
     const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
-    if (res.ok) {
-      console.log(`Item successfully deleted from server: ${itemId}`);
-    } else {
-      console.error(`Failed to delete item from server. ID: ${itemId}, Status: ${res.status}`);
-    }
+    if (!res.ok) throw new Error(`Failed to delete item with ID ${itemId}`);
   } catch (err) {
-    console.error("Error removing item from server:", err);
+    console.error("Error deleting item:", err);
   }
 }
 
