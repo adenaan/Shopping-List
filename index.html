@@ -71,6 +71,13 @@
       margin-top: 15px;
       display: none;
     }
+    /* Mobile screen adjustments */
+    @media (max-width: 600px) {
+      #itemInput, #categoryInput, #addBtn {
+        width: 100%;
+        margin-bottom: 10px;
+      }
+    }
     /* Login Popup Styles */
     #loginPopup {
       position: fixed;
@@ -232,7 +239,6 @@
         try {
           const res = await fetch(`${apiUrl}/list`);
           const items = await res.json();
-          console.log("Fetched list from server:", items);
           localStorage.setItem('cachedList', JSON.stringify(items)); // Cache the list in localStorage
           renderList(items);
         } catch (err) {
