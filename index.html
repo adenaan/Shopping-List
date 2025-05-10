@@ -319,6 +319,7 @@
         const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
         offlineRemovals.push(itemId);
         localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
+        alert("Item removed. Changes will sync when you're back online.");
         return;
       }
 
@@ -327,6 +328,10 @@
         if (!res.ok) throw new Error();
       } catch {
         console.error("Failed to remove item from server.");
+        alert("Failed to remove item from server. Please try again.");
+        cached.push(cached.find(item => item.id === itemId));
+        localStorage.setItem("cachedList", JSON.stringify(cached));
+        renderList(cached);
       }
     }
 
