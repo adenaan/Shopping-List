@@ -290,6 +290,37 @@
       }
     }
 
+    async function exportList() {
+      const cachedList = localStorage.getItem('cachedList');
+      const items = cachedList ? JSON.parse(cachedList) : [];
+      
+      const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'shopping-list.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    async function clearList() {
+      if (!confirm('Are you sure you want to delete the entire list?')) return;
+
+      localStorage.removeItem('cachedList'); // Clear locally cached list
+      listEl.innerHTML = ''; // Clear the UI
+
+      if (navigator.onLine) {
+        try {
+          await fetch(`${apiUrl}/list`, { method: 'DELETE' });
+          console.log('All items deleted from the server.');
+        } catch (err) {
+          console.error('Error clearing list on the server:', err);
+        }
+      }
+    }
+
     addBtn.onclick = async () => {
       const text = input.value.trim();
       const category = categoryInput.value; // Get selected category
@@ -300,7 +331,7 @@
           const res = await fetch(`${apiUrl}/list`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text, category }) // Include category in the request
+            body: JSON.stringify({ text, category })
           });
 
           if (res.ok) {
