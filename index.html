@@ -342,12 +342,15 @@ addBtn.onclick = async () => {
 };
 
 async function removeItem(itemId) {
+  console.log("Removing item with ID:", itemId);
+
   const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
   const isOfflineItem = itemId.startsWith("offline-");
   const updatedList = cachedList.filter((item) => item.id !== itemId);
 
   // Update localStorage with the updated list
   localStorage.setItem("cachedList", JSON.stringify(updatedList));
+  console.log("Updated cached list:", updatedList);
 
   // Immediately update the UI with the updated list
   renderList(updatedList);
@@ -356,7 +359,7 @@ async function removeItem(itemId) {
   const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
   offlineRemovals.push(itemId);
   localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
-  console.log(`Queued offline item for removal: ${itemId}`);
+  console.log(`Queued offline removal: ${itemId}`);
 
   // Exit early if offline or the item is an offline item
   if (!navigator.onLine || isOfflineItem) return;
