@@ -18,16 +18,19 @@
     h1 {
       text-align: center;
     }
-    input, button {
+    input, button, select {
       padding: 10px;
       font-size: 1em;
       margin: 5px 0;
     }
     #itemInput {
-      width: 70%;
+      width: 60%;
+    }
+    #categoryInput {
+      width: 20%;
     }
     #addBtn {
-      width: 28%;
+      width: 15%;
     }
     ul {
       list-style: none;
@@ -135,6 +138,12 @@
     <h1>Shopping List By Addie</h1>
 
     <input id="itemInput" placeholder="Add item..." />
+    <select id="categoryInput">
+      <option value="Groceries">Groceries</option>
+      <option value="Electronics">Electronics</option>
+      <option value="Clothing">Clothing</option>
+      <option value="Other">Other</option>
+    </select>
     <button id="addBtn">Add</button>
 
     <ul id="list"></ul>
@@ -214,6 +223,7 @@
     // Shopping List Logic
     const apiUrl = 'https://shoppinglistaddie.glitch.me';
     const input = document.getElementById('itemInput');
+    const categoryInput = document.getElementById('categoryInput');
     const addBtn = document.getElementById('addBtn');
     const listEl = document.getElementById('list');
 
@@ -251,13 +261,14 @@
 
     function addItemToDOM(item) {
       const li = document.createElement('li');
-      li.innerHTML = `<span>${item.text}</span>
+      li.innerHTML = `<span>${item.text} - <strong>${item.category}</strong></span>
           <button class="removeBtn" onclick="removeItem('${item.id}')">Remove</button>`;
       listEl.appendChild(li);
     }
 
     addBtn.onclick = async () => {
       const text = input.value.trim();
+      const category = categoryInput.value; // Get selected category
       if (!text) return;
 
       if (navigator.onLine) {
@@ -265,7 +276,7 @@
           const res = await fetch(`${apiUrl}/list`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text })
+            body: JSON.stringify({ text, category }) // Include category in the request
           });
 
           if (res.ok) {
@@ -277,6 +288,14 @@
         } catch (err) {
           console.error("Error adding item online:", err);
         }
+      } else {
+        const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
+        const offlineId = `offline-${Date.now()}`;
+        offlineItems.push({ text, category, id: offlineId });
+        localStorage.setItem('offlineItems', JSON.stringify(offlineItems));
+
+        addItemToDOM({ text, category, id: offlineId });
+        input.value = '';
       }
     };
 
