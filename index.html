@@ -136,8 +136,10 @@
       <div id="loginError"></div>
     </form>
   </div>
+
   <div id="content">
     <h1>Shopping List By Addie</h1>
+
     <input id="itemInput" placeholder="Add item..." />
     <select id="categoryInput">
       <option value="Groceries">Groceries</option>
@@ -146,16 +148,209 @@
       <option value="Other">Other</option>
     </select>
     <button id="addBtn">Add</button>
+
     <ul id="list"></ul>
+
     <hr />
+
     <div class="control-buttons">
       <button onclick="exportList()">Export List</button>
       <button onclick="clearList()">Clear All</button>
     </div>
+
     <button id="installBtn">Install App</button>
   </div>
+
   <script>
-// JavaScript goes here
+    const VALID_USERNAME = "addie";
+    const VALID_PASSWORD = "1234";
+    const apiUrl = 'https://shoppinglistaddie.glitch.me';
+    const loginPopup = document.getElementById("loginPopup");
+    const loginForm = document.getElementById("loginForm");
+    const loginError = document.getElementById("loginError");
+    const content = document.getElementById("content");
+    const installBtn = document.getElementById("installBtn");
+    const input = document.getElementById("itemInput");
+    const categoryInput = document.getElementById("categoryInput");
+    const addBtn = document.getElementById("addBtn");
+    const listEl = document.getElementById("list");
+
+    loginForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+      if (username === VALID_USERNAME && password === VALID_PASSWORD) {
+        loginPopup.style.display = "none";
+        content.style.display = "block";
+        loadList();
+      } else {
+        loginError.textContent = "Invalid username or password!";
+      }
+    });
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/Shopping-List/service-worker.js')
+        .then(() => console.log('Service Worker registered.'))
+        .catch(err => console.error('Service Worker registration failed:', err));
+    }
+
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.style.display = 'block';
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') console.log('User accepted install');
+        deferredPrompt = null;
+        installBtn.style.display = 'none';
+      }
+    });
+
+    window.addEventListener('online', syncOfflineChanges);
+
+    async function syncOfflineChanges() {
+      const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
+      const syncedMap = {};
+      for (const item of offlineItems) {
+        try {
+          const res = await fetch(`${apiUrl}/list`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(item),
+          });
+          if (res.ok) {
+            const added = await res.json();
+            syncedMap[item.id] = added.id;
+          }
+        } catch {}
+      }
+      localStorage.removeItem("offlineItems");
+
+      const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
+      const finalRemovals = offlineRemovals.map(id => syncedMap[id] || id);
+      for (const id of finalRemovals) {
+        try {
+          await fetch(`${apiUrl}/list/${id}`, { method: "DELETE" });
+        } catch {}
+      }
+      localStorage.removeItem("offlineRemovals");
+
+      loadList();
+    }
+
+    async function loadList() {
+      if (navigator.onLine) {
+        try {
+          const res = await fetch(`${apiUrl}/list`);
+          const items = await res.json();
+          localStorage.setItem('cachedList', JSON.stringify(items));
+          renderList(items);
+        } catch {
+          useCachedList();
+        }
+      } else {
+        useCachedList();
+      }
+    }
+
+    function useCachedList() {
+      const cached = localStorage.getItem('cachedList');
+      listEl.innerHTML = cached
+        ? JSON.parse(cached).map(createListItemHTML).join("")
+        : '<li>No items available (Offline mode).</li>';
+    }
+
+    function renderList(items) {
+      listEl.innerHTML = items.map(createListItemHTML).join("");
+    }
+
+    function createListItemHTML(item) {
+      return `<li><span>${item.text} - <strong>${item.category}</strong></span>
+        <button class="removeBtn" onclick="removeItem('${item.id}')">Remove</button></li>`;
+    }
+
+    addBtn.onclick = async () => {
+      const text = input.value.trim();
+      const category = categoryInput.value.trim();
+      if (!text) return;
+      const newItem = { text, category, id: `offline-${Date.now()}` };
+
+      if (navigator.onLine) {
+        try {
+          const res = await fetch(`${apiUrl}/list`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(newItem),
+          });
+          if (res.ok) {
+            const added = await res.json();
+            const cached = JSON.parse(localStorage.getItem("cachedList") || "[]");
+            cached.push(added);
+            localStorage.setItem("cachedList", JSON.stringify(cached));
+            renderList(cached);
+            input.value = "";
+          }
+        } catch {}
+      } else {
+        const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
+        offlineItems.push(newItem);
+        localStorage.setItem("offlineItems", JSON.stringify(offlineItems));
+        const cached = JSON.parse(localStorage.getItem("cachedList") || "[]");
+        cached.push(newItem);
+        localStorage.setItem("cachedList", JSON.stringify(cached));
+        renderList(cached);
+        input.value = "";
+      }
+    };
+
+    async function removeItem(itemId) {
+      const cached = JSON.parse(localStorage.getItem("cachedList") || "[]");
+      const updated = cached.filter(item => item.id !== itemId);
+      localStorage.setItem("cachedList", JSON.stringify(updated));
+      renderList(updated);
+
+      const isOfflineItem = itemId.startsWith("offline-");
+      if (!navigator.onLine || isOfflineItem) {
+        const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
+        offlineRemovals.push(itemId);
+        localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
+        return;
+      }
+
+      try {
+        const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
+        if (!res.ok) throw new Error();
+      } catch {
+        console.error("Failed to remove item from server.");
+      }
+    }
+
+    function exportList() {
+      const cached = JSON.parse(localStorage.getItem("cachedList") || "[]");
+      const blob = new Blob([JSON.stringify(cached, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "shopping-list.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function clearList() {
+      if (!confirm("Are you sure you want to clear the entire list?")) return;
+      localStorage.removeItem("cachedList");
+      listEl.innerHTML = "";
+      if (navigator.onLine) {
+        fetch(`${apiUrl}/list`, { method: "DELETE" }).catch(console.error);
+      }
+    }
+
+    loadList();
   </script>
 </body>
 </html>
