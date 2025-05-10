@@ -168,206 +168,213 @@
 
   <script>
     const VALID_USERNAME = "addie";
-    const VALID_PASSWORD = "1234";
-    const apiUrl = 'https://shoppinglistaddie.glitch.me';
-    const loginPopup = document.getElementById("loginPopup");
-    const loginForm = document.getElementById("loginForm");
-    const loginError = document.getElementById("loginError");
-    const content = document.getElementById("content");
-    const installBtn = document.getElementById("installBtn");
-    const input = document.getElementById("itemInput");
-    const categoryInput = document.getElementById("categoryInput");
-    const addBtn = document.getElementById("addBtn");
-    const listEl = document.getElementById("list");
+const VALID_PASSWORD = "1234";
+const apiUrl = 'https://shoppinglistaddie.glitch.me';
+const loginPopup = document.getElementById("loginPopup");
+const loginForm = document.getElementById("loginForm");
+const loginError = document.getElementById("loginError");
+const content = document.getElementById("content");
+const installBtn = document.getElementById("installBtn");
+const input = document.getElementById("itemInput");
+const categoryInput = document.getElementById("categoryInput");
+const addBtn = document.getElementById("addBtn");
+const listEl = document.getElementById("list");
 
-    // Handle login form submission
-    loginForm.addEventListener("submit", (event) => {
-      event.preventDefault();
-      const username = document.getElementById("username").value;
-      const password = document.getElementById("password").value;
-      if (username === VALID_USERNAME && password === VALID_PASSWORD) {
-        loginPopup.style.display = "none";
-        content.style.display = "block";
-        loadList();
-      } else {
-        loginError.textContent = "Invalid username or password!";
-      }
-    });
+// Handle login form submission
+loginForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const username = document.getElementById("username").value;
+  const password = document.getElementById("password").value;
+  if (username === VALID_USERNAME && password === VALID_PASSWORD) {
+    loginPopup.style.display = "none";
+    content.style.display = "block";
+    loadList();
+  } else {
+    loginError.textContent = "Invalid username or password!";
+  }
+});
 
-    // Service Worker Registration
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/Shopping-List/service-worker.js')
-        .then(() => console.log('Service Worker registered successfully.'))
-        .catch(err => console.error('Service Worker registration failed:', err));
+// Service Worker Registration
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/Shopping-List/service-worker.js')
+    .then(() => console.log('Service Worker registered successfully.'))
+    .catch(err => console.error('Service Worker registration failed:', err));
+}
+
+// Handle Install Prompt
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installBtn.style.display = 'block';
+});
+
+installBtn.addEventListener('click', async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      console.log('User accepted the install prompt.');
+    } else {
+      console.log('User dismissed the install prompt.');
     }
+    deferredPrompt = null;
+    installBtn.style.display = 'none';
+  }
+});
 
-    // Handle Install Prompt
-    let deferredPrompt;
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      installBtn.style.display = 'block';
-    });
+// Sync offline changes when coming back online
+window.addEventListener('online', syncOfflineChanges);
 
-    installBtn.addEventListener('click', async () => {
-      if (deferredPrompt) {
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-          console.log('User accepted the install prompt.');
-        } else {
-          console.log('User dismissed the install prompt.');
-        }
-        deferredPrompt = null;
-        installBtn.style.display = 'none';
-      }
-    });
+async function syncOfflineChanges() {
+  console.log("Syncing offline changes...");
 
-    // Sync offline changes when coming back online
-    window.addEventListener('online', syncOfflineChanges);
-
-    async function syncOfflineChanges() {
-      console.log("Syncing offline changes...");
-
-      // Sync offline additions
-      const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
-      for (const item of offlineItems) {
-        try {
-          const res = await fetch(`${apiUrl}/list`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(item),
-          });
-          if (res.ok) console.log(`Synced offline item: ${item.text}`);
-        } catch (err) {
-          console.error("Error syncing offline additions:", err);
-        }
-      }
-      localStorage.removeItem('offlineItems');
-
-      // Sync offline removals
-      const offlineRemovals = JSON.parse(localStorage.getItem('offlineRemovals')) || [];
-      for (const id of offlineRemovals) {
-        try {
-          const res = await fetch(`${apiUrl}/list/${id}`, { method: 'DELETE' });
-          if (res.ok) console.log(`Synced offline removal: ID ${id}`);
-        } catch (err) {
-          console.error("Error syncing offline removals:", err);
-        }
-      }
-      localStorage.removeItem('offlineRemovals');
-      loadList();
+  // Sync offline additions
+  const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
+  for (const item of offlineItems) {
+    try {
+      const res = await fetch(`${apiUrl}/list`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item),
+      });
+      if (res.ok) console.log(`Synced offline item: ${item.text}`);
+    } catch (err) {
+      console.error("Error syncing offline additions:", err);
     }
+  }
+  localStorage.removeItem('offlineItems');
 
-    // Shopping List Logic
-    async function loadList() {
-      if (navigator.onLine) {
-        try {
-          const res = await fetch(`${apiUrl}/list`);
-          const items = await res.json();
-          localStorage.setItem('cachedList', JSON.stringify(items));
-          renderList(items);
-        } catch (err) {
-          console.error("Error fetching list from server:", err);
-          useCachedList();
-        }
-      } else {
-        useCachedList();
-      }
+  // Sync offline removals
+  const offlineRemovals = JSON.parse(localStorage.getItem('offlineRemovals')) || [];
+  for (const id of offlineRemovals) {
+    try {
+      const res = await fetch(`${apiUrl}/list/${id}`, { method: 'DELETE' });
+      if (res.ok) console.log(`Synced offline removal: ID ${id}`);
+    } catch (err) {
+      console.error("Error syncing offline removals:", err);
     }
+  }
+  localStorage.removeItem('offlineRemovals');
+  loadList();
+}
 
-    function useCachedList() {
-      const cached = localStorage.getItem('cachedList');
-      listEl.innerHTML = cached
-        ? JSON.parse(cached).map((item) => createListItemHTML(item)).join("")
-        : '<li>No items available (Offline mode).</li>';
+// Shopping List Logic
+async function loadList() {
+  if (navigator.onLine) {
+    try {
+      const res = await fetch(`${apiUrl}/list`);
+      const items = await res.json();
+      localStorage.setItem('cachedList', JSON.stringify(items));
+      renderList(items);
+    } catch (err) {
+      console.error("Error fetching list from server:", err);
+      useCachedList();
     }
+  } else {
+    useCachedList();
+  }
+}
 
-    function renderList(items) {
-      listEl.innerHTML = items.map((item) => createListItemHTML(item)).join("");
-    }
+function useCachedList() {
+  const cached = localStorage.getItem('cachedList');
+  listEl.innerHTML = cached
+    ? JSON.parse(cached).map((item) => createListItemHTML(item)).join("")
+    : '<li>No items available (Offline mode).</li>';
+}
 
-    function createListItemHTML(item) {
-      return `<li><span>${item.text} - <strong>${item.category}</strong></span>
-              <button class="removeBtn" onclick="removeItem('${item.id}')">Remove</button></li>`;
-    }
+function renderList(items) {
+  listEl.innerHTML = items.map((item) => createListItemHTML(item)).join("");
+}
 
-    addBtn.onclick = async () => {
-      const text = input.value.trim();
-      const category = categoryInput.value.trim();
-      if (!text) return;
+function createListItemHTML(item) {
+  return `<li><span>${item.text} - <strong>${item.category}</strong></span>
+          <button class="removeBtn" onclick="removeItem('${item.id}')">Remove</button></li>`;
+}
 
-      const newItem = { text, category };
+function addItemToDOM(item) {
+  const li = document.createElement("li");
+  li.innerHTML = `<span>${item.text} - <strong>${item.category}</strong></span>
+                  <button class="removeBtn" onclick="removeItem('${item.id}')">Remove</button>`;
+  listEl.appendChild(li);
+}
 
-      if (navigator.onLine) {
-        try {
-          const res = await fetch(`${apiUrl}/list`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(newItem),
-          });
-          if (res.ok) {
-            const addedItem = await res.json();
-            const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-            cachedList.push(addedItem);
-            localStorage.setItem("cachedList", JSON.stringify(cachedList));
-            renderList(cachedList);
-            input.value = "";
-          }
-        } catch (err) {
-          console.error("Error adding item online:", err);
-        }
-      } else {
-        const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
-        offlineItems.push(newItem);
-        localStorage.setItem("offlineItems", JSON.stringify(offlineItems));
-        addItemToDOM({ ...newItem, id: `offline-${Date.now()}` });
+addBtn.onclick = async () => {
+  const text = input.value.trim();
+  const category = categoryInput.value.trim();
+  if (!text) return;
+
+  const newItem = { text, category };
+
+  if (navigator.onLine) {
+    try {
+      const res = await fetch(`${apiUrl}/list`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newItem),
+      });
+      if (res.ok) {
+        const addedItem = await res.json();
+        const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+        cachedList.push(addedItem);
+        localStorage.setItem("cachedList", JSON.stringify(cachedList));
+        renderList(cachedList);
         input.value = "";
       }
-    };
-
-    async function removeItem(itemId) {
-      const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-      const updatedList = cachedList.filter((item) => item.id !== itemId);
-      localStorage.setItem("cachedList", JSON.stringify(updatedList));
-      renderList(updatedList);
-
-      if (navigator.onLine) {
-        try {
-          await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
-        } catch (err) {
-          console.error("Error removing item online:", err);
-        }
-      } else {
-        const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
-        offlineRemovals.push(itemId);
-        localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
-      }
+    } catch (err) {
+      console.error("Error adding item online:", err);
     }
+  } else {
+    const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
+    offlineItems.push(newItem);
+    localStorage.setItem("offlineItems", JSON.stringify(offlineItems));
+    addItemToDOM({ ...newItem, id: `offline-${Date.now()}` });
+    input.value = "";
+  }
+};
 
-    function exportList() {
-      const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-      const blob = new Blob([JSON.stringify(cachedList, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "shopping-list.json";
-      a.click();
-      URL.revokeObjectURL(url);
+async function removeItem(itemId) {
+  const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+  const updatedList = cachedList.filter((item) => item.id !== itemId);
+  localStorage.setItem("cachedList", JSON.stringify(updatedList));
+  renderList(updatedList);
+
+  if (navigator.onLine) {
+    try {
+      await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
+    } catch (err) {
+      console.error("Error removing item online:", err);
     }
+  } else {
+    const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
+    offlineRemovals.push(itemId);
+    localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
+  }
+}
 
-    function clearList() {
-      if (!confirm("Are you sure you want to clear the entire list?")) return;
-      localStorage.removeItem("cachedList");
-      listEl.innerHTML = "";
-      if (navigator.onLine) {
-        fetch(`${apiUrl}/list`, { method: "DELETE" }).catch((err) =>
-          console.error("Error clearing list on server:", err)
-        );
-      }
-    }
+function exportList() {
+  const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+  const blob = new Blob([JSON.stringify(cachedList, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "shopping-list.json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
-    loadList();
+function clearList() {
+  if (!confirm("Are you sure you want to clear the entire list?")) return;
+  localStorage.removeItem("cachedList");
+  listEl.innerHTML = "";
+  if (navigator.onLine) {
+    fetch(`${apiUrl}/list`, { method: "DELETE" }).catch((err) =>
+      console.error("Error clearing list on server:", err)
+    );
+  }
+}
+
+loadList();
   </script>
 </body>
 </html>
