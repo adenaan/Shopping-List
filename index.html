@@ -311,12 +311,6 @@
     async function removeItem(itemId) {
       console.log("Attempting to remove item with ID:", itemId);
 
-      // Update UI immediately
-      const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-      const updatedList = cachedList.filter(item => item.id !== itemId);
-      localStorage.setItem("cachedList", JSON.stringify(updatedList));
-      renderList(updatedList);
-
       const isOfflineItem = itemId.startsWith("offline-");
 
       // Handle offline removal
@@ -325,6 +319,13 @@
         const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
         offlineRemovals.push(itemId);
         localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
+
+        // Update UI immediately
+        const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+        const updatedList = cachedList.filter(item => item.id !== itemId);
+        localStorage.setItem("cachedList", JSON.stringify(updatedList));
+        renderList(updatedList);
+
         alert("Item removed. Changes will sync when you're back online.");
         return;
       }
@@ -335,15 +336,16 @@
         if (!res.ok) {
           throw new Error("Failed to delete item on server.");
         }
+
+        // Update UI after successful server deletion
+        const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+        const updatedList = cachedList.filter(item => item.id !== itemId);
+        localStorage.setItem("cachedList", JSON.stringify(updatedList));
+        renderList(updatedList);
+
         console.log(`Item with ID ${itemId} successfully removed from server.`);
       } catch (err) {
         console.error("Error removing item from server:", err);
-
-        // Rollback UI update if server deletion fails
-        console.log("Reverting UI update due to server error.");
-        cachedList.push(cachedList.find(item => item.id === itemId));
-        localStorage.setItem("cachedList", JSON.stringify(cachedList));
-        renderList(cachedList);
         alert("Server error: Failed to remove item. Please try again.");
       }
     }
