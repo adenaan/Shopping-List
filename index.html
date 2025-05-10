@@ -272,6 +272,24 @@
       listEl.appendChild(li);
     }
 
+    async function removeItem(itemId) {
+      const cached = localStorage.getItem('cachedList');
+      if (cached) {
+        let items = JSON.parse(cached);
+        items = items.filter(item => item.id !== parseInt(itemId, 10)); // Remove item by ID
+        localStorage.setItem('cachedList', JSON.stringify(items));
+        renderList(items); // Update UI
+
+        if (navigator.onLine) {
+          try {
+            await fetch(`${apiUrl}/list/${itemId}`, { method: 'DELETE' });
+          } catch (err) {
+            console.error("Error removing item from server:", err);
+          }
+        }
+      }
+    }
+
     addBtn.onclick = async () => {
       const text = input.value.trim();
       const category = categoryInput.value; // Get selected category
