@@ -323,11 +323,11 @@
         localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
 
         // Update UI immediately
-        const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-        const updatedList = cachedList.filter(item => item.id !== itemId);
-        console.log("Updated cachedList (offline):", updatedList);
-        localStorage.setItem("cachedList", JSON.stringify(updatedList));
-        renderList(updatedList);
+        let cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+        cachedList = cachedList.filter(item => item.id !== itemId);
+        console.log("Updated cachedList (offline):", cachedList);
+        localStorage.setItem("cachedList", JSON.stringify(cachedList));
+        renderList(cachedList);
         console.log("UI updated (offline).");
 
         alert("Item removed. Changes will sync when you're back online.");
@@ -342,11 +342,11 @@
         }
 
         // Update UI after successful server deletion
-        const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-        const updatedList = cachedList.filter(item => item.id !== itemId);
-        console.log("Updated cachedList (online):", updatedList);
-        localStorage.setItem("cachedList", JSON.stringify(updatedList));
-        renderList(updatedList);
+        let cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+        cachedList = cachedList.filter(item => item.id !== itemId);
+        console.log("Updated cachedList (online):", cachedList);
+        localStorage.setItem("cachedList", JSON.stringify(cachedList));
+        renderList(cachedList);
         console.log("UI updated (online).");
 
         console.log(`Item with ID ${itemId} successfully removed from server.`);
