@@ -292,6 +292,7 @@ function useCachedList() {
 }
 
 function renderList(items) {
+  console.log("Rendering list...");
   listEl.innerHTML = items.map((item) => createListItemHTML(item)).join("");
 }
 
@@ -356,13 +357,14 @@ async function removeItem(itemId) {
   renderList(updatedList);
 
   // Queue the removal for offline syncing, if necessary
-  const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
-  offlineRemovals.push(itemId);
-  localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
-  console.log(`Queued offline removal: ${itemId}`);
-
-  // Exit early if offline or the item is an offline item
-  if (!navigator.onLine || isOfflineItem) return;
+  if (!navigator.onLine || isOfflineItem) {
+    console.log("Offline mode detected. Queueing removal...");
+    const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
+    offlineRemovals.push(itemId);
+    localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
+    console.log("Offline removal queued:", itemId);
+    return;
+  }
 
   // If online and valid server ID, attempt to delete from the server
   try {
@@ -370,7 +372,7 @@ async function removeItem(itemId) {
     if (res.ok) {
       console.log(`Item successfully deleted from server: ${itemId}`);
     } else {
-      console.error(`Failed to delete item from server: ID ${itemId}`);
+      console.error(`Failed to delete item from server. ID: ${itemId}, Status: ${res.status}`);
     }
   } catch (err) {
     console.error("Error removing item from server:", err);
