@@ -337,6 +337,8 @@ addBtn.onclick = async () => {
 
 async function removeItem(itemId) {
   console.log("Removing item with ID:", itemId);
+
+  // Update UI immediately
   const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
   const updatedList = cachedList.filter((item) => item.id !== itemId);
   localStorage.setItem("cachedList", JSON.stringify(updatedList));
@@ -344,17 +346,28 @@ async function removeItem(itemId) {
 
   const isOfflineItem = itemId.startsWith("offline-");
   if (!navigator.onLine || isOfflineItem) {
+    console.log("Offline mode. Queuing removal for syncing later.");
     const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
     offlineRemovals.push(itemId);
     localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
     return;
   }
 
+  // Attempt to remove from the server
   try {
     const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
-    if (!res.ok) throw new Error(`Failed to delete item with ID ${itemId}`);
+    if (!res.ok) {
+      throw new Error(`Failed to delete item with ID ${itemId}`);
+    }
+    console.log(`Successfully deleted item with ID ${itemId} from server.`);
   } catch (err) {
-    console.error("Error deleting item:", err);
+    console.error("Error deleting item from server:", err);
+
+    // Revert UI update if the server deletion failed
+    console.log("Reverting UI update due to server error.");
+    cachedList.push(updatedList.find((item) => item.id === itemId));
+    localStorage.setItem("cachedList", JSON.stringify(cachedList));
+    renderList(cachedList);
   }
 }
 
