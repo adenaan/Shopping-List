@@ -10,11 +10,121 @@
   <link rel="apple-touch-icon" href="/Shopping-List/icon-192.png" />
   <title>Shopping List by Addie</title>
   <style>
-    /* [CSS OMITTED FOR BREVITY, ASSUMED TO REMAIN UNCHANGED] */
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      background: #f7f7f7;
+    }
+    h1 {
+      text-align: center;
+    }
+    input, button, select {
+      padding: 10px;
+      font-size: 1em;
+      margin: 5px 0;
+    }
+    #itemInput {
+      width: 60%;
+    }
+    #categoryInput {
+      width: 20%;
+    }
+    #addBtn {
+      width: 15%;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      background: white;
+      padding: 10px;
+      margin: 10px 0;
+      display: flex;
+      justify-content: space-between;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .removeBtn {
+      background: red;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 5px 10px;
+    }
+    hr {
+      margin: 20px 0;
+    }
+    .control-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    #installBtn {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 1em;
+      margin-top: 15px;
+      display: none;
+    }
+    @media (max-width: 600px) {
+      #itemInput, #categoryInput, #addBtn {
+        width: 100%;
+        margin-bottom: 10px;
+      }
+    }
+    #loginPopup {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    #loginPopup form {
+      background: #333;
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    }
+    #loginPopup input[type="text"], #loginPopup input[type="password"] {
+      display: block;
+      width: 100%;
+      margin: 10px 0;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+    }
+    #loginPopup button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      background: #28a745;
+      color: white;
+      cursor: pointer;
+    }
+    #loginPopup button:hover {
+      background: #218838;
+    }
+    #loginError {
+      color: red;
+      margin-top: 10px;
+    }
+    #content {
+      display: none;
+    }
   </style>
 </head>
 <body>
-  <!-- Login Popup -->
   <div id="loginPopup">
     <form id="loginForm">
       <h2>Login</h2>
@@ -26,11 +136,8 @@
       <div id="loginError"></div>
     </form>
   </div>
-
-  <!-- Main Content -->
   <div id="content">
     <h1>Shopping List By Addie</h1>
-
     <input id="itemInput" placeholder="Add item..." />
     <select id="categoryInput">
       <option value="Groceries">Groceries</option>
@@ -39,221 +146,16 @@
       <option value="Other">Other</option>
     </select>
     <button id="addBtn">Add</button>
-
     <ul id="list"></ul>
-
     <hr />
-
     <div class="control-buttons">
       <button onclick="exportList()">Export List</button>
       <button onclick="clearList()">Clear All</button>
     </div>
-
     <button id="installBtn">Install App</button>
   </div>
-
   <script>
-const VALID_USERNAME = "addie";
-const VALID_PASSWORD = "1234";
-const apiUrl = 'https://shoppinglistaddie.glitch.me';
-const loginPopup = document.getElementById("loginPopup");
-const loginForm = document.getElementById("loginForm");
-const loginError = document.getElementById("loginError");
-const content = document.getElementById("content");
-const installBtn = document.getElementById("installBtn");
-const input = document.getElementById("itemInput");
-const categoryInput = document.getElementById("categoryInput");
-const addBtn = document.getElementById("addBtn");
-const listEl = document.getElementById("list");
-
-loginForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const username = document.getElementById("username").value;
-  const password = document.getElementById("password").value;
-  if (username === VALID_USERNAME && password === VALID_PASSWORD) {
-    loginPopup.style.display = "none";
-    content.style.display = "block";
-    loadList();
-  } else {
-    loginError.textContent = "Invalid username or password!";
-  }
-});
-
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/Shopping-List/service-worker.js')
-    .then(() => console.log('Service Worker registered successfully.'))
-    .catch(err => console.error('Service Worker registration failed:', err));
-}
-
-let deferredPrompt;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  installBtn.style.display = 'block';
-});
-
-installBtn.addEventListener('click', async () => {
-  if (deferredPrompt) {
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') console.log('User accepted the install prompt.');
-    deferredPrompt = null;
-    installBtn.style.display = 'none';
-  }
-});
-
-window.addEventListener('online', syncOfflineChanges);
-
-async function syncOfflineChanges() {
-  const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
-  const syncedIdsMap = {};
-  for (const item of offlineItems) {
-    try {
-      const res = await fetch(`${apiUrl}/list`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(item),
-      });
-      if (res.ok) {
-        const addedItem = await res.json();
-        syncedIdsMap[item.id] = addedItem.id;
-      }
-    } catch (err) {
-      console.error("Error syncing offline additions:", err);
-    }
-  }
-  localStorage.removeItem("offlineItems");
-
-  const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
-  const validRemovals = offlineRemovals.map(id => syncedIdsMap[id] || id);
-  for (const id of validRemovals) {
-    try {
-      await fetch(`${apiUrl}/list/${id}`, { method: "DELETE" });
-    } catch (err) {
-      console.error("Error syncing offline removals:", err);
-    }
-  }
-  localStorage.removeItem("offlineRemovals");
-  loadList();
-}
-
-async function loadList() {
-  if (navigator.onLine) {
-    try {
-      const res = await fetch(`${apiUrl}/list`);
-      const items = await res.json();
-      localStorage.setItem('cachedList', JSON.stringify(items));
-      renderList(items);
-    } catch (err) {
-      console.error("Error fetching list:", err);
-      useCachedList();
-    }
-  } else {
-    useCachedList();
-  }
-}
-
-function useCachedList() {
-  const cached = localStorage.getItem('cachedList');
-  listEl.innerHTML = cached
-    ? JSON.parse(cached).map(createListItemHTML).join("")
-    : '<li>No items available (Offline mode).</li>';
-}
-
-function renderList(items) {
-  const html = items.map(createListItemHTML).join("");
-  listEl.innerHTML = html;
-}
-
-function createListItemHTML(item) {
-  return `<li><span>${item.text} - <strong>${item.category}</strong></span>
-    <button class="removeBtn" onclick="removeItem('${item.id}')">Remove</button></li>`;
-}
-
-addBtn.onclick = async () => {
-  const text = input.value.trim();
-  const category = categoryInput.value.trim();
-  if (!text) return;
-
-  const newItem = { text, category, id: `offline-${Date.now()}` };
-
-  if (navigator.onLine) {
-    try {
-      const res = await fetch(`${apiUrl}/list`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newItem),
-      });
-      if (res.ok) {
-        const addedItem = await res.json();
-        const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-        cachedList.push(addedItem);
-        localStorage.setItem("cachedList", JSON.stringify(cachedList));
-        renderList(cachedList);
-        input.value = "";
-      }
-    } catch (err) {
-      console.error("Error adding item online:", err);
-    }
-  } else {
-    const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
-    offlineItems.push(newItem);
-    localStorage.setItem("offlineItems", JSON.stringify(offlineItems));
-    const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-    cachedList.push(newItem);
-    localStorage.setItem("cachedList", JSON.stringify(cachedList));
-    renderList(cachedList);
-    input.value = "";
-  }
-};
-
-async function removeItem(itemId) {
-  const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-  const updatedList = cachedList.filter(item => item.id !== itemId);
-  localStorage.setItem("cachedList", JSON.stringify(updatedList));
-  renderList(updatedList);
-
-  const isOfflineItem = itemId.startsWith("offline-");
-  if (!navigator.onLine || isOfflineItem) {
-    const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
-    offlineRemovals.push(itemId);
-    localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
-    return;
-  }
-
-  try {
-    const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
-    if (!res.ok) throw new Error();
-  } catch (err) {
-    cachedList.push(updatedList.find(item => item.id === itemId));
-    localStorage.setItem("cachedList", JSON.stringify(cachedList));
-    renderList(cachedList);
-  }
-}
-
-function exportList() {
-  const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-  const blob = new Blob([JSON.stringify(cachedList, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "shopping-list.json";
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function clearList() {
-  if (!confirm("Are you sure you want to clear the entire list?")) return;
-  localStorage.removeItem("cachedList");
-  listEl.innerHTML = "";
-  if (navigator.onLine) {
-    fetch(`${apiUrl}/list`, { method: "DELETE" }).catch(err =>
-      console.error("Error clearing list on server:", err)
-    );
-  }
-}
-
-loadList();
+// JavaScript goes here
   </script>
 </body>
 </html>
