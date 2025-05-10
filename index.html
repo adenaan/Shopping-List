@@ -352,15 +352,16 @@ async function removeItem(itemId) {
   // Immediately update the UI with the updated list
   renderList(updatedList);
 
-  // If offline or item is an offline item, queue it for removal
+  // Queue the removal for offline syncing, if necessary
   const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
   offlineRemovals.push(itemId);
   localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
   console.log(`Queued offline item for removal: ${itemId}`);
 
+  // Exit early if offline or the item is an offline item
   if (!navigator.onLine || isOfflineItem) return;
 
-  // If online and valid server ID, attempt to delete from server
+  // If online and valid server ID, attempt to delete from the server
   try {
     const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
     if (res.ok) {
