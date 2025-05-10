@@ -265,7 +265,6 @@
         : '<li>No items available (Offline mode).</li>';
     }
 
-    // Updated renderList with event delegation
     function renderList(items) {
       console.log("Rendering list with items:", items);
 
@@ -336,6 +335,43 @@
         console.error("Error removing item from server:", err);
       }
     }
+
+    addBtn.addEventListener("click", async () => {
+      const text = input.value.trim();
+      const category = categoryInput.value.trim();
+      if (!text) return;
+      const newItem = { text, category, id: `offline-${Date.now()}` };
+
+      // Update cached list and UI immediately
+      let cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+      cachedList.push(newItem);
+      localStorage.setItem("cachedList", JSON.stringify(cachedList));
+      renderList(cachedList);
+      input.value = "";
+
+      // Sync with server if online
+      if (navigator.onLine) {
+        try {
+          const res = await fetch(`${apiUrl}/list`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(newItem),
+          });
+          if (res.ok) {
+            const added = await res.json();
+            cachedList = cachedList.map(item => item.id === newItem.id ? added : item);
+            localStorage.setItem("cachedList", JSON.stringify(cachedList));
+            renderList(cachedList);
+          }
+        } catch (err) {
+          console.error("Error syncing with server:", err);
+        }
+      } else {
+        const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
+        offlineItems.push(newItem);
+        localStorage.setItem("offlineItems", JSON.stringify(offlineItems));
+      }
+    });
 
     function exportList() {
       const cached = JSON.parse(localStorage.getItem("cachedList") || "[]");
