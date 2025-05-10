@@ -273,7 +273,7 @@ async function loadList() {
     try {
       const res = await fetch(`${apiUrl}/list`);
       const items = await res.json();
-      localStorage.setItem("cachedList", JSON.stringify(items));
+      localStorage.setItem('cachedList', JSON.stringify(items));
       renderList(items);
     } catch (err) {
       console.error("Error fetching list from server:", err);
@@ -285,7 +285,7 @@ async function loadList() {
 }
 
 function useCachedList() {
-  const cached = localStorage.getItem("cachedList");
+  const cached = localStorage.getItem('cachedList');
   listEl.innerHTML = cached
     ? JSON.parse(cached).map((item) => createListItemHTML(item)).join("")
     : '<li>No items available (Offline mode).</li>';
@@ -346,9 +346,9 @@ async function removeItem(itemId) {
   const isOfflineItem = itemId.startsWith("offline-");
   const updatedList = cachedList.filter((item) => item.id !== itemId);
 
-  // Update localStorage and UI
+  // Update localStorage and UI immediately
   localStorage.setItem("cachedList", JSON.stringify(updatedList));
-  renderList(updatedList);
+  renderList(updatedList); // Re-render the updated list on the front-end
 
   // If offline or item is an offline item, queue it for removal
   if (!navigator.onLine || isOfflineItem) {
