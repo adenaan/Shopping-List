@@ -346,9 +346,11 @@ async function removeItem(itemId) {
   const isOfflineItem = itemId.startsWith("offline-");
   const updatedList = cachedList.filter((item) => item.id !== itemId);
 
-  // Update localStorage and UI immediately
+  // Update localStorage with the updated list
   localStorage.setItem("cachedList", JSON.stringify(updatedList));
-  renderList(updatedList); // Re-render the updated list on the front-end
+
+  // Immediately update the UI with the updated list
+  renderList(updatedList);
 
   // If offline or item is an offline item, queue it for removal
   if (!navigator.onLine || isOfflineItem) {
@@ -363,7 +365,7 @@ async function removeItem(itemId) {
   try {
     const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
     if (res.ok) {
-      console.log(`Item deleted from server: ${itemId}`);
+      console.log(`Item successfully deleted from server: ${itemId}`);
     } else {
       console.error(`Failed to delete item from server: ID ${itemId}`);
     }
