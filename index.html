@@ -267,7 +267,10 @@
 
     function renderList(items) {
       console.log("Rendering list with items:", items);
-      listEl.innerHTML = items.map(createListItemHTML).join("");
+      listEl.innerHTML = ""; // Clear list temporarily to force repaint
+      listEl.offsetHeight;   // Trigger DOM reflow
+      listEl.innerHTML = items.map(createListItemHTML).join(""); // Update list
+      console.log("Updated UI with items.");
     }
 
     function createListItemHTML(item) {
