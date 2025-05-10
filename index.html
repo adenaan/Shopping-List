@@ -299,7 +299,7 @@ function renderList(items) {
   listEl.innerHTML = html;
 
   // Log the final rendered HTML
-  console.log("Rendered HTML:", html);
+  console.log("Rendered HTML after rendering:", html);
 }
 
 function createListItemHTML(item) {
@@ -359,7 +359,7 @@ async function removeItem(itemId) {
 
   // Update localStorage with the updated list
   localStorage.setItem("cachedList", JSON.stringify(updatedList));
-  console.log("Updated cached list:", updatedList);
+  console.log("Updated cached list in localStorage:", JSON.parse(localStorage.getItem("cachedList")));
 
   // Immediately update the UI with the updated list
   renderList(updatedList);
