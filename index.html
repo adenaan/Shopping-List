@@ -292,13 +292,21 @@ function useCachedList() {
 }
 
 function renderList(items) {
-  console.log("Rendering list...");
-  listEl.innerHTML = items.map((item) => createListItemHTML(item)).join("");
+  console.log("Rendering list with items:", items);
+
+  // Generate HTML for the list
+  const html = items.map((item) => createListItemHTML(item)).join("");
+  listEl.innerHTML = html;
+
+  // Log the final rendered HTML
+  console.log("Rendered HTML:", html);
 }
 
 function createListItemHTML(item) {
-  return `<li><span>${item.text} - <strong>${item.category}</strong></span>
-          <button class="removeBtn" onclick="removeItem('${item.id}')">Remove</button></li>`;
+  const html = `<li><span>${item.text} - <strong>${item.category}</strong></span>
+                <button class="removeBtn" onclick="removeItem('${item.id}')">Remove</button></li>`;
+  console.log("Generated HTML for item:", html);
+  return html;
 }
 
 function addItemToDOM(item) {
