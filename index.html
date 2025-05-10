@@ -18,16 +18,19 @@
     h1 {
       text-align: center;
     }
-    input, button {
+    input, button, select {
       padding: 10px;
       font-size: 1em;
       margin: 5px 0;
     }
     #itemInput {
-      width: 70%;
+      width: 60%;
+    }
+    #categoryInput {
+      width: 20%;
     }
     #addBtn {
-      width: 28%;
+      width: 15%;
     }
     ul {
       list-style: none;
@@ -67,6 +70,13 @@
       font-size: 1em;
       margin-top: 15px;
       display: none;
+    }
+    /* Mobile screen adjustments */
+    @media (max-width: 600px) {
+      #itemInput, #categoryInput, #addBtn {
+        width: 100%;
+        margin-bottom: 10px;
+      }
     }
     /* Login Popup Styles */
     #loginPopup {
@@ -135,6 +145,12 @@
     <h1>Shopping List By Addie</h1>
 
     <input id="itemInput" placeholder="Add item..." />
+    <select id="categoryInput">
+      <option value="Groceries">Groceries</option>
+      <option value="Electronics">Electronics</option>
+      <option value="Clothing">Clothing</option>
+      <option value="Other">Other</option>
+    </select>
     <button id="addBtn">Add</button>
 
     <ul id="list"></ul>
@@ -143,7 +159,6 @@
 
     <div class="control-buttons">
       <button onclick="exportList()">Export List</button>
-      <input type="file" accept=".json" onchange="importList(event)" />
       <button onclick="clearList()">Clear All</button>
     </div>
 
@@ -152,307 +167,220 @@
   </div>
 
   <script>
-    // Hardcoded login credentials
-    const VALID_USERNAME = "addie";
-    const VALID_PASSWORD = "1234";
+const VALID_USERNAME = "addie";
+const VALID_PASSWORD = "1234";
+const apiUrl = 'https://shoppinglistaddie.glitch.me';
+const loginPopup = document.getElementById("loginPopup");
+const loginForm = document.getElementById("loginForm");
+const loginError = document.getElementById("loginError");
+const content = document.getElementById("content");
+const installBtn = document.getElementById("installBtn");
+const input = document.getElementById("itemInput");
+const categoryInput = document.getElementById("categoryInput");
+const addBtn = document.getElementById("addBtn");
+const listEl = document.getElementById("list");
 
-    // DOM Elements
-    const loginPopup = document.getElementById("loginPopup");
-    const loginForm = document.getElementById("loginForm");
-    const loginError = document.getElementById("loginError");
-    const content = document.getElementById("content");
+// Handle login form submission
+loginForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const username = document.getElementById("username").value;
+  const password = document.getElementById("password").value;
+  if (username === VALID_USERNAME && password === VALID_PASSWORD) {
+    loginPopup.style.display = "none";
+    content.style.display = "block";
+    loadList();
+  } else {
+    loginError.textContent = "Invalid username or password!";
+  }
+});
 
-    // Handle login form submission
-    loginForm.addEventListener("submit", (event) => {
-      event.preventDefault(); // Prevent form from refreshing the page
+// Service Worker Registration
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/Shopping-List/service-worker.js')
+    .then(() => console.log('Service Worker registered successfully.'))
+    .catch(err => console.error('Service Worker registration failed:', err));
+}
 
-      // Validate credentials
-      const username = document.getElementById("username").value;
-      const password = document.getElementById("password").value;
+// Handle Install Prompt
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installBtn.style.display = 'block';
+});
 
-      if (username === VALID_USERNAME && password === VALID_PASSWORD) {
-        // Hide login popup and show main content
-        loginPopup.style.display = "none";
-        content.style.display = "block";
-      } else {
-        // Show error message
-        loginError.textContent = "Invalid username or password!";
+installBtn.addEventListener('click', async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      console.log('User accepted the install prompt.');
+    } else {
+      console.log('User dismissed the install prompt.');
+    }
+    deferredPrompt = null;
+    installBtn.style.display = 'none';
+  }
+});
+
+// Sync offline changes when coming back online
+window.addEventListener('online', syncOfflineChanges);
+
+async function syncOfflineChanges() {
+  console.log("Syncing offline changes...");
+
+  const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
+  const syncedIdsMap = {}; // Map offline IDs to server IDs
+  for (const item of offlineItems) {
+    try {
+      const res = await fetch(`${apiUrl}/list`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(item),
+      });
+      if (res.ok) {
+        const addedItem = await res.json();
+        syncedIdsMap[item.id] = addedItem.id; // Map offline ID to server ID
+        console.log(`Synced offline item: ${item.text}`);
       }
-    });
-
-    // Shopping List Logic
-    const apiUrl = 'https://shoppinglistaddie.glitch.me';
-    const input = document.getElementById('itemInput');
-    const addBtn = document.getElementById('addBtn');
-    const listEl = document.getElementById('list');
-    const installBtn = document.getElementById('installBtn');
-
-    async function loadList() {
-        if (navigator.onLine) {
-            try {
-                const res = await fetch(`${apiUrl}/list`);
-                const items = await res.json();
-                console.log("Fetched list from server:", items);
-                localStorage.setItem('cachedList', JSON.stringify(items)); // Cache the list in localStorage
-                renderList(items);
-            } catch (err) {
-                console.error("Error fetching list from server:", err);
-                useCachedList();
-            }
-        } else {
-            useCachedList();
-        }
+    } catch (err) {
+      console.error("Error syncing offline additions:", err);
     }
+  }
+  localStorage.removeItem("offlineItems");
 
-    function useCachedList() {
-        const cached = localStorage.getItem('cachedList');
-        if (cached) {
-            const items = JSON.parse(cached);
-            console.log("Using cached list:", items);
-            renderList(items);
-        } else {
-            listEl.innerHTML = '<li>No items available (Offline mode).</li>';
-        }
+  const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
+  const validRemovals = offlineRemovals.map((id) => syncedIdsMap[id] || id);
+  for (const id of validRemovals) {
+    try {
+      const res = await fetch(`${apiUrl}/list/${id}`, { method: "DELETE" });
+      if (res.ok) console.log(`Synced offline removal: ID ${id}`);
+    } catch (err) {
+      console.error("Error syncing offline removals:", err);
     }
+  }
+  localStorage.removeItem("offlineRemovals");
 
-    // Render the list
-    function renderList(items) {
-        listEl.innerHTML = ''; // Clear any existing items in the list
-        items.forEach((item, index) => addItemToDOM(item, index));
+  loadList();
+}
+
+async function loadList() {
+  if (navigator.onLine) {
+    try {
+      const res = await fetch(`${apiUrl}/list`);
+      const items = await res.json();
+      localStorage.setItem('cachedList', JSON.stringify(items));
+      renderList(items);
+    } catch (err) {
+      console.error("Error fetching list from server:", err);
+      useCachedList();
     }
+  } else {
+    useCachedList();
+  }
+}
 
-    // Add item to DOM
-    function addItemToDOM(item, index) {
-        console.log("Adding item to DOM. Text:", item.text, "Index:", index);
-        const li = document.createElement('li');
-        li.innerHTML = `<span>${item.text}</span>
-            <button class="removeBtn" onclick="removeItem('${item.id}')">Remove</button>`;
-        listEl.appendChild(li);
+function useCachedList() {
+  const cached = localStorage.getItem('cachedList');
+  listEl.innerHTML = cached
+    ? JSON.parse(cached).map((item) => createListItemHTML(item)).join("")
+    : '<li>No items available (Offline mode).</li>';
+}
+
+function renderList(items) {
+  console.log("Rendering list with items:", items);
+  const html = items.map((item) => createListItemHTML(item)).join("");
+  listEl.innerHTML = html;
+  console.log("Rendered HTML:", html);
+}
+
+function createListItemHTML(item) {
+  return `<li><span>${item.text} - <strong>${item.category}</strong></span>
+          <button class="removeBtn" onclick="removeItem('${item.id}')">Remove</button></li>`;
+}
+
+addBtn.onclick = async () => {
+  const text = input.value.trim();
+  const category = categoryInput.value.trim();
+  if (!text) return;
+
+  const newItem = { text, category, id: `offline-${Date.now()}` };
+
+  if (navigator.onLine) {
+    try {
+      const res = await fetch(`${apiUrl}/list`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newItem),
+      });
+      if (res.ok) {
+        const addedItem = await res.json();
+        const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+        cachedList.push(addedItem);
+        localStorage.setItem("cachedList", JSON.stringify(cachedList));
+        renderList(cachedList);
+        input.value = "";
+      }
+    } catch (err) {
+      console.error("Error adding item online:", err);
     }
+  } else {
+    const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
+    offlineItems.push(newItem);
+    localStorage.setItem("offlineItems", JSON.stringify(offlineItems));
+    const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+    cachedList.push(newItem);
+    renderList(cachedList);
+    input.value = "";
+  }
+};
 
-    // Add item (online or offline)
-    addBtn.onclick = async () => {
-        const text = input.value.trim();
-        if (!text) return;
+async function removeItem(itemId) {
+  console.log("Removing item with ID:", itemId);
+  const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+  const updatedList = cachedList.filter((item) => item.id !== itemId);
+  localStorage.setItem("cachedList", JSON.stringify(updatedList));
+  renderList(updatedList);
 
-        if (navigator.onLine) {
-            try {
-                const res = await fetch(`${apiUrl}/list`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text })
-                });
+  const isOfflineItem = itemId.startsWith("offline-");
+  if (!navigator.onLine || isOfflineItem) {
+    const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
+    offlineRemovals.push(itemId);
+    localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
+    return;
+  }
 
-                if (res.ok) {
-                    const newItem = await res.json(); // Fetch and use the created item with its ID
-                    console.log("Item added online:", newItem);
-                    renderList([...JSON.parse(localStorage.getItem('cachedList')), newItem]); // Update UI locally
-                    localStorage.setItem('cachedList', JSON.stringify([...JSON.parse(localStorage.getItem('cachedList')), newItem])); // Cache the new item
-                    input.value = '';
-                } else {
-                    alert('Error adding item.');
-                }
-            } catch (err) {
-                console.error("Error adding item online:", err);
-                alert('Error: Could not sync with server.');
-            }
-        } else {
-            const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
-            const offlineId = `offline-${Date.now()}`; // Generate unique ID for offline item
-            offlineItems.push({ text, id: offlineId });
-            localStorage.setItem('offlineItems', JSON.stringify(offlineItems));
+  try {
+    const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
+    if (!res.ok) throw new Error(`Failed to delete item with ID ${itemId}`);
+  } catch (err) {
+    console.error("Error deleting item:", err);
+  }
+}
 
-            addItemToDOM({ text, id: offlineId }); // Update UI
-            console.log("Item added offline:", text);
-            input.value = ''; // Clear the input field
-        }
-    };
+function exportList() {
+  const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+  const blob = new Blob([JSON.stringify(cachedList, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "shopping-list.json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
-    // Remove item (online or offline)
-    async function removeItem(itemId) {
-        const cached = localStorage.getItem('cachedList');
-        if (cached) {
-            const items = JSON.parse(cached);
-            const itemToRemove = items.find(item => item.id === itemId); // Find the item by its ID
-            if (!itemToRemove) {
-                console.error("Item to remove not found in cached list:", itemId);
-                return;
-            }
+function clearList() {
+  if (!confirm("Are you sure you want to clear the entire list?")) return;
+  localStorage.removeItem("cachedList");
+  listEl.innerHTML = "";
+  if (navigator.onLine) {
+    fetch(`${apiUrl}/list`, { method: "DELETE" }).catch((err) =>
+      console.error("Error clearing list on server:", err)
+    );
+  }
+}
 
-            // Remove the item from the cache
-            const updatedItems = items.filter(item => item.id !== itemId);
-            localStorage.setItem('cachedList', JSON.stringify(updatedItems));
-            console.log("Item removed locally:", itemToRemove);
-
-            // Track the removal offline
-            const offlineRemovals = JSON.parse(localStorage.getItem('offlineRemovals')) || [];
-            offlineRemovals.push(itemId); // Store the ID for later syncing
-            localStorage.setItem('offlineRemovals', JSON.stringify(offlineRemovals));
-
-            renderList(updatedItems); // Update the UI
-
-            if (navigator.onLine) {
-                console.log("Attempting immediate sync for removal...");
-                await syncRemovals(); // Attempt immediate sync if online
-            }
-        }
-    }
-
-    // Sync offline items and removals once the user comes online
-    window.addEventListener('online', async () => {
-        console.log("Back online. Syncing offline changes...");
-        await syncAdditions();
-        await syncRemovals();
-        loadList(); // Reload the list after syncing
-    });
-
-    // Sync offline additions
-    async function syncAdditions() {
-        const offlineItems = JSON.parse(localStorage.getItem('offlineItems')) || [];
-        if (offlineItems.length > 0) {
-            try {
-                for (const item of offlineItems) {
-                    const res = await fetch(`${apiUrl}/list`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ text: item.text })
-                    });
-                    if (res.ok) {
-                        console.log("Offline item synced to server:", item.text);
-                    } else {
-                        console.error("Failed to sync offline item:", item.text);
-                    }
-                }
-                localStorage.removeItem('offlineItems'); // Clear offline additions after syncing
-            } catch (err) {
-                console.error('Failed to sync offline items:', err);
-            }
-        }
-    }
-
-    // Sync offline removals
-    async function syncRemovals() {
-        const offlineRemovals = JSON.parse(localStorage.getItem('offlineRemovals')) || [];
-        if (offlineRemovals.length > 0) {
-            try {
-                for (const itemId of offlineRemovals) {
-                    console.log("Sending DELETE request for item ID:", itemId); // Log the ID being sent
-                    const res = await fetch(`${apiUrl}/list/${itemId}`, { method: 'DELETE' });
-                    if (res.ok) {
-                        console.log("Offline removal synced to server:", itemId);
-                    } else {
-                        console.error("Failed to remove item from server. ID:", itemId, "Status:", res.status);
-                    }
-                }
-                localStorage.removeItem('offlineRemovals'); // Clear offline removals after syncing
-            } catch (err) {
-                console.error('Failed to sync offline removals:', err);
-            }
-        }
-    }
-
-    // Clear list (online or offline)
-    async function clearList() {
-        if (!confirm('Are you sure you want to delete the entire list?')) return;
-
-        if (navigator.onLine) {
-            try {
-                await fetch(`${apiUrl}/list`, { method: 'DELETE' });
-                loadList();
-            } catch {
-                alert('Error: Could not sync with server.');
-            }
-        } else {
-            localStorage.removeItem('cachedList');
-            loadList();
-        }
-    }
-
-    // Export list to JSON
-    async function exportList() {
-        if (navigator.onLine) {
-            try {
-                const res = await fetch(`${apiUrl}/list`);
-                const data = await res.json();
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'shopping-list.json';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            } catch {
-                alert('Error exporting list.');
-            }
-        } else {
-            alert('Cannot export while offline.');
-        }
-    }
-
-    // Import list from JSON
-    async function importList(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        const text = await file.text();
-        let items;
-        try {
-            items = JSON.parse(text);
-            if (!Array.isArray(items)) throw new Error("Invalid list format.");
-        } catch (err) {
-            alert('Invalid JSON file.');
-            return;
-        }
-
-        for (const item of items) {
-            if (typeof item === 'string') {
-                try {
-                    await fetch(`${apiUrl}/list`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ text: item })
-                    });
-                } catch {
-                    alert('Error syncing imported items.');
-                }
-            }
-        }
-
-        loadList();
-    }
-
-    // Service Worker for offline caching
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/Shopping-List/service-worker.js')
-            .then(() => console.log('Service Worker registered'))
-            .catch(err => console.error('Service Worker registration failed:', err));
-    }
-
-    // Handle Install Prompt
-    let deferredPrompt;
-
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        installBtn.style.display = 'block';
-    });
-
-    installBtn.addEventListener('click', async () => {
-        if (deferredPrompt) {
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            if (outcome === 'accepted') {
-                console.log('User accepted the install prompt');
-            } else {
-                console.log('User dismissed the install prompt');
-            }
-            deferredPrompt = null;
-            installBtn.style.display = 'none';
-        }
-    });
-
-    loadList(); // Initial load of the list
+loadList();
   </script>
 </body>
 </html>
