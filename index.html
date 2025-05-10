@@ -266,7 +266,9 @@
     }
 
     function renderList(items) {
+      console.log("Rendering list with items:", items); // Debug log
       listEl.innerHTML = items.map(createListItemHTML).join("");
+      console.log("Updated UI with items.");
     }
 
     function createListItemHTML(item) {
@@ -323,8 +325,10 @@
         // Update UI immediately
         const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
         const updatedList = cachedList.filter(item => item.id !== itemId);
+        console.log("Updated cachedList (offline):", updatedList);
         localStorage.setItem("cachedList", JSON.stringify(updatedList));
         renderList(updatedList);
+        console.log("UI updated (offline).");
 
         alert("Item removed. Changes will sync when you're back online.");
         return;
@@ -340,8 +344,10 @@
         // Update UI after successful server deletion
         const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
         const updatedList = cachedList.filter(item => item.id !== itemId);
+        console.log("Updated cachedList (online):", updatedList);
         localStorage.setItem("cachedList", JSON.stringify(updatedList));
         renderList(updatedList);
+        console.log("UI updated (online).");
 
         console.log(`Item with ID ${itemId} successfully removed from server.`);
       } catch (err) {
