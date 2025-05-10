@@ -353,13 +353,12 @@ async function removeItem(itemId) {
   renderList(updatedList);
 
   // If offline or item is an offline item, queue it for removal
-  if (!navigator.onLine || isOfflineItem) {
-    const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
-    offlineRemovals.push(itemId);
-    localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
-    console.log(`Queued offline item for removal: ${itemId}`);
-    return;
-  }
+  const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
+  offlineRemovals.push(itemId);
+  localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
+  console.log(`Queued offline item for removal: ${itemId}`);
+
+  if (!navigator.onLine || isOfflineItem) return;
 
   // If online and valid server ID, attempt to delete from server
   try {
