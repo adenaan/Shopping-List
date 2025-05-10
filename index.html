@@ -265,52 +265,35 @@
         : '<li>No items available (Offline mode).</li>';
     }
 
+    // Updated renderList with event delegation
     function renderList(items) {
       console.log("Rendering list with items:", items);
-      listEl.innerHTML = ""; // Clear list temporarily to force repaint
-      listEl.offsetHeight;   // Trigger DOM reflow
-      listEl.innerHTML = items.map(createListItemHTML).join(""); // Update list
+
+      // Clear current list
+      listEl.innerHTML = "";
+
+      // Create new list items
+      for (const item of items) {
+        const li = document.createElement("li");
+        li.innerHTML = `<span>${item.text} - <strong>${item.category}</strong></span>`;
+        const button = document.createElement("button");
+        button.className = "removeBtn";
+        button.textContent = "Remove";
+        button.dataset.id = item.id;
+        li.appendChild(button);
+        listEl.appendChild(li);
+      }
+
       console.log("Updated UI with items.");
     }
 
-    function createListItemHTML(item) {
-      return `<li><span>${item.text} - <strong>${item.category}</strong></span>
-        <button class="removeBtn" onclick="removeItem('${item.id}')">Remove</button></li>`;
-    }
-
-    addBtn.onclick = async () => {
-      const text = input.value.trim();
-      const category = categoryInput.value.trim();
-      if (!text) return;
-      const newItem = { text, category, id: `offline-${Date.now()}` };
-
-      if (navigator.onLine) {
-        try {
-          const res = await fetch(`${apiUrl}/list`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(newItem),
-          });
-          if (res.ok) {
-            const added = await res.json();
-            const cached = JSON.parse(localStorage.getItem("cachedList") || "[]");
-            cached.push(added);
-            localStorage.setItem("cachedList", JSON.stringify(cached));
-            renderList(cached);
-            input.value = "";
-          }
-        } catch {}
-      } else {
-        const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
-        offlineItems.push(newItem);
-        localStorage.setItem("offlineItems", JSON.stringify(offlineItems));
-        const cached = JSON.parse(localStorage.getItem("cachedList") || "[]");
-        cached.push(newItem);
-        localStorage.setItem("cachedList", JSON.stringify(cached));
-        renderList(cached);
-        input.value = "";
+    // Event delegation for remove buttons
+    listEl.addEventListener("click", (event) => {
+      if (event.target.classList.contains("removeBtn")) {
+        const itemId = event.target.dataset.id;
+        removeItem(itemId);
       }
-    };
+    });
 
     async function removeItem(itemId) {
       console.log("Attempting to remove item with ID:", itemId);
