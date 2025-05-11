@@ -86,9 +86,66 @@
         margin-bottom: 10px;
       }
     }
+    #loginPopup {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    #loginPopup form {
+      background: #333;
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    }
+    #loginPopup input[type="text"], #loginPopup input[type="password"] {
+      display: block;
+      width: 100%;
+      margin: 10px 0;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+    }
+    #loginPopup button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      background: #28a745;
+      color: white;
+      cursor: pointer;
+    }
+    #loginPopup button:hover {
+      background: #218838;
+    }
+    #loginError {
+      color: red;
+      margin-top: 10px;
+    }
+    #content {
+      display: none;
+    }
   </style>
 </head>
 <body>
+  <div id="loginPopup">
+    <form id="loginForm">
+      <h2>Login</h2>
+      <label for="username">Username:</label>
+      <input type="text" id="username" name="username" required />
+      <label for="password">Password:</label>
+      <input type="password" id="password" name="password" required />
+      <button type="submit">Login</button>
+      <div id="loginError"></div>
+    </form>
+  </div>
+
   <div id="content">
     <h1>Shopping List By Addie</h1>
 
@@ -112,6 +169,9 @@
   </div>
 
   <script>
+    const VALID_USERNAME = "addie";
+    const VALID_PASSWORD = "1234";
+
     const apiUrl = 'https://shoppinglistaddie.glitch.me';
     const input = document.getElementById("itemInput");
     const categoryInput = document.getElementById("categoryInput");
@@ -119,13 +179,17 @@
     const listEl = document.getElementById("list");
     const importFileInput = document.getElementById("importFileInput");
 
-    // Define the new categories
+    const loginPopup = document.getElementById("loginPopup");
+    const loginForm = document.getElementById("loginForm");
+    const loginError = document.getElementById("loginError");
+    const content = document.getElementById("content");
+
     const categories = [
       "Fruits & Vegetables",
       "Dairy & Eggs",
       "Meat & Seafood",
       "Bakery & Bread",
-      "Pantry Essentials (e.g., rice, pasta, canned goods)",
+      "Pantry Essentials",
       "Frozen Foods",
       "Snacks & Sweets",
       "Beverages",
@@ -148,7 +212,20 @@
     // Call populateCategories on page load
     populateCategories();
 
-    // Group items by category and render them
+    loginForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+      if (username === VALID_USERNAME && password === VALID_PASSWORD) {
+        loginPopup.style.display = "none";
+        content.style.display = "block";
+        loadList();
+      } else {
+        loginError.textContent = "Invalid username or password!";
+      }
+    });
+
+    // Group items and render them
     function renderList(items) {
       const groupedItems = items.reduce((acc, item) => {
         if (!acc[item.category]) {
@@ -177,7 +254,6 @@
 
     async function removeItem(itemId) {
       let cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-
       cachedList = cachedList.filter(item => String(item.id) !== String(itemId));
       localStorage.setItem("cachedList", JSON.stringify(cachedList));
       renderList(cachedList);
@@ -231,48 +307,6 @@
       input.value = "";
     });
 
-    function shareList() {
-      const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-      if (cachedList.length === 0) {
-        alert("Your shopping list is empty.");
-        return;
-      }
-
-      const groupedItems = cachedList.reduce((acc, item) => {
-        if (!acc[item.category]) {
-          acc[item.category] = [];
-        }
-        acc[item.category].push(item.text);
-        return acc;
-      }, {});
-
-      let shareableText = "Shopping List:\n\n";
-      Object.keys(groupedItems).forEach(category => {
-        shareableText += `${category}:\n`;
-        groupedItems[category].forEach(item => {
-          shareableText += `- ${item}\n`;
-        });
-        shareableText += "\n";
-      });
-
-      if (navigator.share) {
-        navigator.share({
-          title: "My Shopping List",
-          text: shareableText.trim(),
-        }).then(() => {
-          alert("List shared successfully!");
-        }).catch(err => {
-          console.error("Error sharing the list:", err);
-        });
-      } else {
-        navigator.clipboard.writeText(shareableText.trim()).then(() => {
-          alert("List copied to clipboard! You can now paste it anywhere.");
-        }).catch(err => {
-          console.error("Error copying the list to clipboard:", err);
-        });
-      }
-    }
-
     function clearList() {
       if (!confirm("Are you sure you want to clear the entire list?")) return;
       localStorage.removeItem("cachedList");
@@ -297,8 +331,6 @@
         renderList(cached);
       }
     }
-
-    loadList();
   </script>
 </body>
 </html>
