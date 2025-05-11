@@ -223,15 +223,15 @@
       const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
       const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
 
-      // Sync offline removals first
-      for (const itemId of offlineRemovals) {
+      // Remove offline items that are queued for deletion
+      offlineRemovals.forEach(itemId => {
         const index = offlineItems.findIndex(item => item.id === itemId);
         if (index !== -1) {
-          offlineItems.splice(index, 1); // Remove from offlineItems if it's queued for removal
+          offlineItems.splice(index, 1); // Remove the item from offlineItems
         }
-      }
+      });
 
-      // Update offline items after removals
+      // Update offlineItems in localStorage
       localStorage.setItem("offlineItems", JSON.stringify(offlineItems));
 
       for (const itemId of offlineRemovals) {
