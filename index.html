@@ -216,24 +216,26 @@
     async function handleOnlineStatus() {
       console.log("App is now online. Syncing offline changes...");
       await syncOfflineChanges();
-      await loadList(); // Fetch the latest list from the server
+      await loadList();
     }
 
     async function syncOfflineChanges() {
       const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
       const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
 
-      // Sync offline removals first
+      // Sync offline removals
       for (const itemId of offlineRemovals) {
-        try {
-          const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
-          if (res.ok) {
-            console.log(`Successfully deleted item with ID: ${itemId}`);
-          } else {
-            console.error(`Failed to delete item with ID: ${itemId}`);
+        if (!itemId.startsWith("offline-")) { // Only sync valid server IDs
+          try {
+            const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
+            if (res.ok) {
+              console.log(`Successfully deleted item with ID: ${itemId}`);
+            } else {
+              console.error(`Failed to delete item with ID: ${itemId}`);
+            }
+          } catch (err) {
+            console.error(`Error deleting item with ID: ${itemId}`, err);
           }
-        } catch (err) {
-          console.error(`Error deleting item with ID: ${itemId}`, err);
         }
       }
 
@@ -247,7 +249,6 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(item),
           });
-
           if (res.ok) {
             console.log("Successfully synced item:", item);
           } else {
@@ -324,12 +325,14 @@
     async function removeItem(itemId) {
       if (navigator.onLine) {
         try {
-          const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
-          if (res.ok) {
-            const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-            const updatedList = cachedList.filter(item => item.id !== itemId);
-            localStorage.setItem("cachedList", JSON.stringify(updatedList));
-            renderList(updatedList);
+          if (!itemId.startsWith("offline-")) { // Only attempt to delete valid server IDs
+            const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
+            if (res.ok) {
+              const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+              const updatedList = cachedList.filter(item => item.id !== itemId);
+              localStorage.setItem("cachedList", JSON.stringify(updatedList));
+              renderList(updatedList);
+            }
           }
         } catch (err) {
           console.error("Error removing item:", err);
