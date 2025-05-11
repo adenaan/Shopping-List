@@ -20,16 +20,19 @@
       text-align: center;
       color: #333;
     }
-    input, button {
+    input, button, select {
       padding: 10px;
       font-size: 16px;
       margin: 5px 0;
     }
     #itemInput {
-      width: calc(100% - 100px);
+      width: calc(50% - 10px);
+    }
+    #categoryInput {
+      width: calc(25% - 10px);
     }
     #addBtn {
-      width: 80px;
+      width: calc(25% - 10px);
     }
     ul {
       list-style-type: none;
@@ -81,6 +84,12 @@
   <h1>Shopping List</h1>
   <div>
     <input id="itemInput" placeholder="Add an item..." />
+    <select id="categoryInput">
+      <option value="Groceries">Groceries</option>
+      <option value="Electronics">Electronics</option>
+      <option value="Clothing">Clothing</option>
+      <option value="Other">Other</option>
+    </select>
     <button id="addBtn">Add</button>
   </div>
   <ul id="list"></ul>
@@ -92,6 +101,7 @@
   <script>
     const apiUrl = 'https://shoppinglistaddie.glitch.me';
     const input = document.getElementById("itemInput");
+    const categoryInput = document.getElementById("categoryInput");
     const addBtn = document.getElementById("addBtn");
     const listEl = document.getElementById("list");
     const offlineIndicator = document.getElementById("offlineIndicator");
@@ -155,14 +165,15 @@
     }
 
     function createListItemHTML(item) {
-      return `<li>${item.text} <button class="removeBtn" onclick="removeItem('${item.id}')">Remove</button></li>`;
+      return `<li>${item.text} - <strong>${item.category}</strong> <button class="removeBtn" onclick="removeItem('${item.id}')">Remove</button></li>`;
     }
 
     addBtn.addEventListener("click", async () => {
       const text = input.value.trim();
+      const category = categoryInput.value;
       if (!text) return;
 
-      const newItem = { text, id: `offline-${Date.now()}` };
+      const newItem = { text, category, id: `offline-${Date.now()}` };
 
       if (navigator.onLine) {
         try {
