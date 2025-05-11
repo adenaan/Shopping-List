@@ -45,6 +45,11 @@
       border-radius: 6px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
+    .category-header {
+      font-weight: bold;
+      font-size: 1.2em;
+      margin-top: 10px;
+    }
     .removeBtn {
       background: red;
       color: white;
@@ -272,8 +277,29 @@
       localStorage.removeItem("offlineItems");
     }
 
+    // Group items by category and render them
     function renderList(items) {
-      listEl.innerHTML = items.map(createListItemHTML).join("");
+      // Group items by category
+      const groupedItems = items.reduce((acc, item) => {
+        if (!acc[item.category]) {
+          acc[item.category] = [];
+        }
+        acc[item.category].push(item);
+        return acc;
+      }, {});
+
+      // Construct HTML for grouped items
+      let html = '';
+      const sortedCategories = Object.keys(groupedItems).sort();
+      sortedCategories.forEach(category => {
+        html += `<li class="category-header">${category}</li>`;
+        groupedItems[category].forEach(item => {
+          html += createListItemHTML(item);
+        });
+      });
+
+      // Update the DOM
+      listEl.innerHTML = html;
     }
 
     async function addItemOffline(item) {
