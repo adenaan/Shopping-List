@@ -282,7 +282,7 @@
             const items = await res.json();
             localStorage.setItem("cachedList", JSON.stringify(items));
             cachedList = items; // Update cachedList after refreshing
-            console.log("Cache successfully refreshed.");
+            console.log("Cache successfully refreshed:", cachedList);
           } catch (err) {
             console.error("Failed to refresh cache from server:", err);
             alert("Failed to sync with server. Please try again later.");
