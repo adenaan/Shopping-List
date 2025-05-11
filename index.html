@@ -270,12 +270,39 @@
       console.log("Attempting to remove item with ID:", itemId);
 
       let cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+
+      // Check if the item exists in the cached list
       const itemExists = cachedList.some(item => item.id === itemId);
       if (!itemExists) {
-        console.warn(`Item with ID ${itemId} not found in cachedList.`);
+        console.warn(`Item with ID ${itemId} not found in cachedList. Attempting to refresh cache...`);
+
+        if (navigator.onLine) {
+          try {
+            const res = await fetch(`${apiUrl}/list`);
+            const items = await res.json();
+            localStorage.setItem("cachedList", JSON.stringify(items));
+            cachedList = items; // Update cachedList after refreshing
+            console.log("Cache successfully refreshed.");
+          } catch (err) {
+            console.error("Failed to refresh cache from server:", err);
+            alert("Failed to sync with server. Please try again later.");
+            return;
+          }
+        } else {
+          alert("You are offline. Unable to find the item. Please try again when online.");
+          return;
+        }
+      }
+
+      // Re-check if the item exists after refreshing cache
+      const updatedItemExists = cachedList.some(item => item.id === itemId);
+      if (!updatedItemExists) {
+        console.warn(`Item with ID ${itemId} still not found after refreshing cache.`);
+        alert("Item not found. Please refresh the page.");
         return;
       }
 
+      // Remove the item
       cachedList = cachedList.filter(item => item.id !== itemId);
       localStorage.setItem("cachedList", JSON.stringify(cachedList));
       renderList(cachedList);
@@ -289,6 +316,7 @@
         return;
       }
 
+      // Remove item from the server
       try {
         const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
         if (!res.ok) {
