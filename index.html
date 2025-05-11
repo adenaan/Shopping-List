@@ -171,6 +171,17 @@
   <script>
     const VALID_USERNAME = "addie";
     const VALID_PASSWORD = "1234";
+    const apiUrl = 'https://shoppinglistaddie.glitch.me';
+    const loginPopup = document.getElementById("loginPopup");
+    const loginForm = document.getElementById("loginForm");
+    const loginError = document.getElementById("loginError");
+    const content = document.getElementById("content");
+    const installBtn = document.getElementById("installBtn");
+    const input = document.getElementById("itemInput");
+    const categoryInput = document.getElementById("categoryInput");
+    const addBtn = document.getElementById("addBtn");
+    const listEl = document.getElementById("list");
+    const importFileInput = document.getElementById("importFileInput");
 
     const categories = [
       "Fruits & Vegetables",
@@ -186,24 +197,14 @@
       "Other"
     ];
 
-    const loginPopup = document.getElementById("loginPopup");
-    const loginForm = document.getElementById("loginForm");
-    const loginError = document.getElementById("loginError");
-    const content = document.getElementById("content");
-    const itemInput = document.getElementById("itemInput");
-    const categoryInput = document.getElementById("categoryInput");
-    const listEl = document.getElementById("list");
-
-    // Populate categories dynamically
+    // Dynamically populate categories
     function populateCategories() {
       categoryInput.innerHTML = categories
         .map(category => `<option value="${category}">${category}</option>`)
         .join("");
     }
-
     populateCategories();
 
-    // Login functionality
     loginForm.addEventListener("submit", (event) => {
       event.preventDefault();
       const username = document.getElementById("username").value;
@@ -216,6 +217,12 @@
         loginError.textContent = "Invalid username or password!";
       }
     });
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/Shopping-List/service-worker.js')
+        .then(() => console.log('Service Worker registered.'))
+        .catch(err => console.error('Service Worker registration failed:', err));
+    }
 
     // Share List Functionality
     function shareList() {
@@ -258,61 +265,6 @@
           console.error("Error copying the list to clipboard:", err);
         });
       }
-    }
-
-    // Group items by category and render them
-    function renderList(items) {
-      const groupedItems = items.reduce((acc, item) => {
-        if (!acc[item.category]) {
-          acc[item.category] = [];
-        }
-        acc[item.category].push(item);
-        return acc;
-      }, {});
-
-      let html = '';
-      const sortedCategories = Object.keys(groupedItems).sort();
-      sortedCategories.forEach(category => {
-        html += `<li class="category-header">${category}</li>`;
-        groupedItems[category].forEach(item => {
-          html += createListItemHTML(item);
-        });
-      });
-
-      listEl.innerHTML = html;
-    }
-
-    function createListItemHTML(item) {
-      return `<li><span>${item.text} - <strong>${item.category}</strong></span>
-        <button class="removeBtn" onclick="removeItem('${item.id}')">Remove</button></li>`;
-    }
-
-    async function addItem() {
-      const text = itemInput.value.trim();
-      const category = categoryInput.value.trim();
-      if (!text) {
-        alert("Please enter an item.");
-        return;
-      }
-
-      const newItem = { text, category, id: `offline-${Date.now()}` };
-      const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-      cachedList.push(newItem);
-      localStorage.setItem("cachedList", JSON.stringify(cachedList));
-      renderList(cachedList);
-      itemInput.value = "";
-    }
-
-    async function removeItem(itemId) {
-      let cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-      cachedList = cachedList.filter(item => String(item.id) !== String(itemId));
-      localStorage.setItem("cachedList", JSON.stringify(cachedList));
-      renderList(cachedList);
-    }
-
-    async function loadList() {
-      const cached = JSON.parse(localStorage.getItem("cachedList") || "[]");
-      renderList(cached);
     }
   </script>
 </body>
