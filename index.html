@@ -283,47 +283,30 @@
         <button class="removeBtn" onclick="removeItem('${item.id}')">Remove</button></li>`;
     }
 
-    async function addItem() {
-      const text = input.value.trim();
-      const category = categoryInput.value.trim();
-      if (!text) {
-        alert("Please enter an item.");
-        return;
-      }
-
-      const newItem = { text, category, id: `offline-${Date.now()}` };
+    async function removeItem(itemId) {
       const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+      const updatedList = cachedList.filter(item => item.id !== itemId);
+
+      // Update locally
+      localStorage.setItem("cachedList", JSON.stringify(updatedList));
+      renderList(updatedList);
 
       if (navigator.onLine) {
         try {
-          const res = await fetch(`${apiUrl}/list`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(newItem),
-          });
-          if (res.ok) {
-            const addedItem = await res.json();
-            cachedList.push(addedItem);
-          } else {
-            cachedList.push(newItem);
+          const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
+          if (!res.ok) {
+            console.error("Failed to delete item from server.");
           }
         } catch (err) {
-          console.error("Failed to sync item with server, adding offline.");
-          cachedList.push(newItem);
+          console.error("Error deleting item from server:", err);
         }
       } else {
-        cachedList.push(newItem);
-        const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
-        offlineItems.push(newItem);
-        localStorage.setItem("offlineItems", JSON.stringify(offlineItems));
+        // Queue for offline removal
+        const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
+        offlineRemovals.push(itemId);
+        localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
       }
-
-      localStorage.setItem("cachedList", JSON.stringify(cachedList));
-      renderList(cachedList);
-      input.value = "";
     }
-
-    addBtn.addEventListener("click", addItem);
 
     async function loadList() {
       if (navigator.onLine) {
