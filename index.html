@@ -332,6 +332,12 @@
               const updatedList = cachedList.filter(item => item.id !== itemId);
               localStorage.setItem("cachedList", JSON.stringify(updatedList));
               renderList(updatedList);
+            } else if (res.status === 404) {
+              console.warn(`Item with ID ${itemId} not found on the server.`);
+              const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+              const updatedList = cachedList.filter(item => item.id !== itemId);
+              localStorage.setItem("cachedList", JSON.stringify(updatedList));
+              renderList(updatedList);
             }
           }
         } catch (err) {
