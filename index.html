@@ -223,7 +223,17 @@
       const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
       const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
 
-      // Sync offline removals
+      // Sync offline removals first
+      for (const itemId of offlineRemovals) {
+        const index = offlineItems.findIndex(item => item.id === itemId);
+        if (index !== -1) {
+          offlineItems.splice(index, 1); // Remove from offlineItems if it's queued for removal
+        }
+      }
+
+      // Update offline items after removals
+      localStorage.setItem("offlineItems", JSON.stringify(offlineItems));
+
       for (const itemId of offlineRemovals) {
         if (!itemId.startsWith("offline-")) { // Only sync valid server IDs
           try {
@@ -241,7 +251,6 @@
 
       localStorage.removeItem("offlineRemovals");
 
-      // Sync offline additions
       for (const item of offlineItems) {
         try {
           const res = await fetch(`${apiUrl}/list`, {
@@ -250,16 +259,9 @@
             body: JSON.stringify(item),
           });
           if (res.ok) {
-            const addedItem = await res.json();
-            console.log("Offline item synced with server:", addedItem);
-
-            // Update the cached list with the server-assigned ID
-            let cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-            cachedList = cachedList.map((cachedItem) =>
-              cachedItem.id === item.id ? addedItem : cachedItem
-            );
-            localStorage.setItem("cachedList", JSON.stringify(cachedList));
-            renderList(cachedList);
+            console.log("Successfully synced item:", item);
+          } else {
+            console.error("Failed to sync item:", item);
           }
         } catch (err) {
           console.error("Error syncing item:", err);
