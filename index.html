@@ -86,9 +86,66 @@
         margin-bottom: 10px;
       }
     }
+    #loginPopup {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    #loginPopup form {
+      background: #333;
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    }
+    #loginPopup input[type="text"], #loginPopup input[type="password"] {
+      display: block;
+      width: 100%;
+      margin: 10px 0;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+    }
+    #loginPopup button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      background: #28a745;
+      color: white;
+      cursor: pointer;
+    }
+    #loginPopup button:hover {
+      background: #218838;
+    }
+    #loginError {
+      color: red;
+      margin-top: 10px;
+    }
+    #content {
+      display: none;
+    }
   </style>
 </head>
 <body>
+  <div id="loginPopup">
+    <form id="loginForm">
+      <h2>Login</h2>
+      <label for="username">Username:</label>
+      <input type="text" id="username" name="username" required />
+      <label for="password">Password:</label>
+      <input type="password" id="password" name="password" required />
+      <button type="submit">Login</button>
+      <div id="loginError"></div>
+    </form>
+  </div>
+
   <div id="content">
     <h1>Shopping List By Addie</h1>
 
@@ -117,6 +174,9 @@
   </div>
 
   <script>
+    const VALID_USERNAME = "addie";
+    const VALID_PASSWORD = "1234";
+
     const apiUrl = 'https://shoppinglistaddie.glitch.me';
     const input = document.getElementById("itemInput");
     const categoryInput = document.getElementById("categoryInput");
@@ -124,9 +184,26 @@
     const listEl = document.getElementById("list");
     const importFileInput = document.getElementById("importFileInput");
 
+    const loginPopup = document.getElementById("loginPopup");
+    const loginForm = document.getElementById("loginForm");
+    const loginError = document.getElementById("loginError");
+    const content = document.getElementById("content");
+
+    loginForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+      if (username === VALID_USERNAME && password === VALID_PASSWORD) {
+        loginPopup.style.display = "none";
+        content.style.display = "block";
+        loadList();
+      } else {
+        loginError.textContent = "Invalid username or password!";
+      }
+    });
+
     // Group items by category and render them
     function renderList(items) {
-      // Group items by category
       const groupedItems = items.reduce((acc, item) => {
         if (!acc[item.category]) {
           acc[item.category] = [];
@@ -135,7 +212,6 @@
         return acc;
       }, {});
 
-      // Construct HTML for grouped items
       let html = '';
       const sortedCategories = Object.keys(groupedItems).sort();
       sortedCategories.forEach(category => {
@@ -145,7 +221,6 @@
         });
       });
 
-      // Update the DOM
       listEl.innerHTML = html;
     }
 
@@ -155,8 +230,6 @@
     }
 
     async function removeItem(itemId) {
-      console.log("Attempting to remove item with ID:", itemId);
-
       let cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
 
       cachedList = cachedList.filter(item => String(item.id) !== String(itemId));
@@ -165,10 +238,7 @@
 
       if (navigator.onLine && !itemId.startsWith("offline-")) {
         try {
-          const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
-          if (!res.ok) {
-            console.warn(`Failed to delete item with ID: ${itemId} from the server.`);
-          }
+          await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
         } catch (err) {
           console.error(`Error removing item with ID: ${itemId}`, err);
         }
@@ -176,7 +246,6 @@
         const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
         offlineRemovals.push(itemId);
         localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
-        console.log("Item queued for offline removal:", itemId);
       }
     }
 
@@ -216,66 +285,6 @@
       input.value = "";
     });
 
-    function exportList() {
-      const cached = JSON.parse(localStorage.getItem("cachedList") || "[]");
-      const blob = new Blob([JSON.stringify(cached, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "shopping-list.json";
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function importList() {
-      importFileInput.click();
-      importFileInput.onchange = (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          try {
-            const importedItems = JSON.parse(e.target.result);
-
-            // Merge imported items with the cached list
-            const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-            const mergedList = [...cachedList, ...importedItems];
-            localStorage.setItem("cachedList", JSON.stringify(mergedList));
-            renderList(mergedList);
-
-            // Sync imported items with the server
-            if (navigator.onLine) {
-              for (const item of importedItems) {
-                try {
-                  const res = await fetch(`${apiUrl}/list`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(item),
-                  });
-                  if (!res.ok) {
-                    console.error("Failed to sync imported item:", item);
-                  }
-                } catch (error) {
-                  console.error("Error syncing imported item:", item, error);
-                }
-              }
-            } else {
-              const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
-              const updatedOfflineItems = [...offlineItems, ...importedItems];
-              localStorage.setItem("offlineItems", JSON.stringify(updatedOfflineItems));
-            }
-
-            alert("List imported successfully!");
-          } catch (error) {
-            console.error("Error importing list:", error);
-            alert("Invalid file format. Please upload a valid JSON file.");
-          }
-        };
-        reader.readAsText(file);
-      };
-    }
-
     function shareList() {
       const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
       if (cachedList.length === 0) {
@@ -308,14 +317,12 @@
           alert("List shared successfully!");
         }).catch(err => {
           console.error("Error sharing the list:", err);
-          alert("Failed to share the list.");
         });
       } else {
         navigator.clipboard.writeText(shareableText.trim()).then(() => {
           alert("List copied to clipboard! You can now paste it anywhere.");
         }).catch(err => {
           console.error("Error copying the list to clipboard:", err);
-          alert("Failed to copy the list to clipboard.");
         });
       }
     }
@@ -344,8 +351,6 @@
         renderList(cached);
       }
     }
-
-    loadList();
   </script>
 </body>
 </html>
