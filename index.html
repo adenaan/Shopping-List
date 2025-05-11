@@ -216,7 +216,7 @@
     async function handleOnlineStatus() {
       console.log("App is now online. Syncing offline changes...");
       await syncOfflineChanges();
-      await loadList();
+      await loadList(); // Fetch the latest list from the server
     }
 
     async function syncOfflineChanges() {
@@ -250,15 +250,23 @@
             body: JSON.stringify(item),
           });
           if (res.ok) {
-            console.log("Successfully synced item:", item);
-          } else {
-            console.error("Failed to sync item:", item);
+            const addedItem = await res.json();
+            console.log("Offline item synced with server:", addedItem);
+
+            // Update the cached list with the server-assigned ID
+            let cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+            cachedList = cachedList.map((cachedItem) =>
+              cachedItem.id === item.id ? addedItem : cachedItem
+            );
+            localStorage.setItem("cachedList", JSON.stringify(cachedList));
+            renderList(cachedList);
           }
         } catch (err) {
           console.error("Error syncing item:", err);
         }
       }
 
+      // Clear offline items after syncing
       localStorage.removeItem("offlineItems");
     }
 
@@ -274,77 +282,29 @@
       renderList(cachedList);
     }
 
-    async function removeItemOffline(itemId) {
-      const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
-      offlineRemovals.push(itemId);
-      localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
-      console.log("Item queued for offline removal:", itemId);
-
-      const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-      const updatedList = cachedList.filter(item => item.id !== itemId);
-      localStorage.setItem("cachedList", JSON.stringify(updatedList));
-      renderList(updatedList);
-
-      const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
-      const updatedOfflineItems = offlineItems.filter(item => item.id !== itemId);
-      localStorage.setItem("offlineItems", JSON.stringify(updatedOfflineItems));
-    }
-
-    async function loadList() {
-      if (navigator.onLine) {
-        try {
-          const res = await fetch(`${apiUrl}/list`);
-          const items = await res.json();
-          localStorage.setItem('cachedList', JSON.stringify(items));
-          renderList(items);
-        } catch (err) {
-          console.error("Failed to fetch items from server:", err);
-          useCachedList();
-        }
-      } else {
-        useCachedList();
-      }
-    }
-
-    function useCachedList() {
-      const cached = localStorage.getItem('cachedList');
-      listEl.innerHTML = cached
-        ? JSON.parse(cached).map(createListItemHTML).join("")
-        : '<li>No items available (Offline mode).</li>';
-    }
-
-    function renderList(items) {
-      listEl.innerHTML = items.map(createListItemHTML).join("");
-    }
-
-    function createListItemHTML(item) {
-      return `<li><span>${item.text} - <strong>${item.category}</strong></span>
-        <button class="removeBtn" onclick="removeItem('${item.id}')">Remove</button></li>`;
-    }
-
     async function removeItem(itemId) {
-      if (navigator.onLine) {
+      console.log("Attempting to remove item with ID:", itemId);
+
+      let cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+
+      cachedList = cachedList.filter(item => String(item.id) !== String(itemId));
+      localStorage.setItem("cachedList", JSON.stringify(cachedList));
+      renderList(cachedList);
+
+      if (navigator.onLine && !itemId.startsWith("offline-")) {
         try {
-          if (!itemId.startsWith("offline-")) { // Only attempt to delete valid server IDs
-            const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
-            if (res.ok) {
-              const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-              const updatedList = cachedList.filter(item => item.id !== itemId);
-              localStorage.setItem("cachedList", JSON.stringify(updatedList));
-              renderList(updatedList);
-            } else if (res.status === 404) {
-              console.warn(`Item with ID ${itemId} not found on the server.`);
-              const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-              const updatedList = cachedList.filter(item => item.id !== itemId);
-              localStorage.setItem("cachedList", JSON.stringify(updatedList));
-              renderList(updatedList);
-            }
+          const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
+          if (!res.ok) {
+            console.warn(`Failed to delete item with ID: ${itemId} from the server.`);
           }
         } catch (err) {
-          console.error("Error removing item:", err);
+          console.error(`Error removing item with ID: ${itemId}`, err);
         }
       } else {
-        await removeItemOffline(itemId);
+        const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
+        offlineRemovals.push(itemId);
+        localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
+        console.log("Item queued for offline removal:", itemId);
       }
     }
 
@@ -377,6 +337,26 @@
       }
       input.value = "";
     });
+
+    function exportList() {
+      const cached = JSON.parse(localStorage.getItem("cachedList") || "[]");
+      const blob = new Blob([JSON.stringify(cached, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "shopping-list.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function clearList() {
+      if (!confirm("Are you sure you want to clear the entire list?")) return;
+      localStorage.removeItem("cachedList");
+      listEl.innerHTML = "";
+      if (navigator.onLine) {
+        fetch(`${apiUrl}/list`, { method: "DELETE" }).catch(console.error);
+      }
+    }
 
     loadList();
   </script>
