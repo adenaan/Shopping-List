@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <link rel="manifest" href="/Shopping-List/manifest.json" />
-  <link rel="icon" href="/Shopping-List/icon-192.png" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon-192.png" />
   <meta name="theme-color" content="#4CAF50" />
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <link rel="apple-touch-icon" href="/Shopping-List/icon-192.png" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
   <title>Shopping List by Addie</title>
   <style>
     body {
@@ -49,10 +49,10 @@
       font-weight: bold;
       font-size: 1.2em;
       margin-top: 10px;
-      background-color: #d4edda; /* Light green background */
+      background-color: #d4edda;
       padding: 10px;
       border-radius: 6px;
-      color: #155724; /* Dark green text */
+      color: #155724;
     }
     .removeBtn {
       background: red;
@@ -178,6 +178,7 @@
     const addBtn = document.getElementById("addBtn");
     const listEl = document.getElementById("list");
     const importFileInput = document.getElementById("importFileInput");
+    const installBtn = document.getElementById("installBtn");
 
     const loginPopup = document.getElementById("loginPopup");
     const loginForm = document.getElementById("loginForm");
@@ -189,7 +190,7 @@
       "Dairy & Eggs",
       "Meat & Seafood",
       "Bakery & Bread",
-      "Pantry Essentials",
+      "Pantry Essentials (e.g., rice, pasta, canned goods)",
       "Frozen Foods",
       "Snacks & Sweets",
       "Beverages",
@@ -201,6 +202,8 @@
       "Health & Medicine",
       "Other"
     ];
+
+    let deferredPrompt; // For storing the beforeinstallprompt event
 
     // Populate categories in the dropdown
     function populateCategories() {
@@ -224,6 +227,34 @@
         loginError.textContent = "Invalid username or password!";
       }
     });
+
+    // Show the PWA install button when beforeinstallprompt is triggered
+    window.addEventListener('beforeinstallprompt', (event) => {
+      event.preventDefault();
+      deferredPrompt = event;
+      installBtn.style.display = 'block';
+    });
+
+    // Handle the PWA install button click
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          console.log('User accepted the install prompt');
+        } else {
+          console.log('User dismissed the install prompt');
+        }
+        deferredPrompt = null; // Clear the deferred prompt
+        installBtn.style.display = 'none';
+      }
+    });
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(() => console.log('Service Worker registered.'))
+        .catch(err => console.error('Service Worker registration failed:', err));
+    }
 
     // Group items and render them
     function renderList(items) {
@@ -268,51 +299,6 @@
         const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
         offlineRemovals.push(itemId);
         localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
-      }
-    }
-
-    addBtn.addEventListener("click", async () => {
-      const text = input.value.trim();
-      const category = categoryInput.value.trim();
-      if (!text) return;
-
-      const newItem = { text, category, id: `offline-${Date.now()}` };
-
-      if (navigator.onLine) {
-        try {
-          const res = await fetch(`${apiUrl}/list`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(newItem),
-          });
-          if (res.ok) {
-            const added = await res.json();
-            const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-            cachedList.push(added);
-            localStorage.setItem("cachedList", JSON.stringify(cachedList));
-            renderList(cachedList);
-          }
-        } catch (err) {
-          console.error("Error syncing item:", err);
-        }
-      } else {
-        const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
-        offlineItems.push(newItem);
-        localStorage.setItem("offlineItems", JSON.stringify(offlineItems));
-        const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-        cachedList.push(newItem);
-        localStorage.setItem("cachedList", JSON.stringify(cachedList));
-        renderList(cachedList);
-      }
-      input.value = "";
-    });
-
-    function clearList() {
-      if (!confirm("Are you sure you want to clear the entire list?")) return;
-      localStorage.removeItem("cachedList");
-      listEl.innerHTML = "";
-      if (navigator.onLine) {
-        fetch(`${apiUrl}/list`, { method: "DELETE" }).catch(console.error);
       }
     }
 
