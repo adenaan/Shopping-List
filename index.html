@@ -183,6 +183,30 @@
   const listEl = document.getElementById("list");
   const importFileInput = document.getElementById("importFileInput");
 
+  // Categories to be dynamically added to the dropdown
+  const categories = [
+    "Fruits & Vegetables",
+    "Dairy & Eggs",
+    "Bakery & Bread",
+    "Meat & Seafood",
+    "Snacks & Sweets",
+    "Beverages",
+    "Pantry Essentials",
+    "Cleaning Supplies",
+    "Personal Care",
+    "Other"
+  ];
+
+  // Populate the category dropdown with categories from the array
+  function populateCategories() {
+    categoryInput.innerHTML = categories
+      .map(category => `<option value="${category}">${category}</option>`)
+      .join("");
+  }
+
+  // Call this function on page load to ensure the dropdown is populated
+  populateCategories();
+
   loginForm?.addEventListener("submit", (event) => {
     event.preventDefault();
     const username = document.getElementById("username")?.value;
@@ -261,11 +285,7 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(item),
           });
-          if (res.ok) {
-            console.log("Successfully synced item:", item);
-          } else {
-            console.error("Failed to sync item:", item);
-          }
+          if (!res.ok) console.error("Failed to sync item:", item);
         } catch (err) {
           console.error("Error syncing item:", err);
         }
