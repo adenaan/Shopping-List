@@ -160,10 +160,12 @@
 
     <div class="control-buttons">
       <button onclick="exportList()">Export List</button>
+      <button onclick="importList()">Import List</button>
       <button onclick="clearList()">Clear All</button>
     </div>
 
     <button id="installBtn">Install App</button>
+    <input type="file" id="importFileInput" style="display: none;" />
   </div>
 
   <script>
@@ -179,6 +181,7 @@
     const categoryInput = document.getElementById("categoryInput");
     const addBtn = document.getElementById("addBtn");
     const listEl = document.getElementById("list");
+    const importFileInput = document.getElementById("importFileInput");
 
     loginForm.addEventListener("submit", (event) => {
       event.preventDefault();
@@ -384,6 +387,30 @@
       a.download = "shopping-list.json";
       a.click();
       URL.revokeObjectURL(url);
+    }
+
+    function importList() {
+      importFileInput.click();
+      importFileInput.onchange = (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const importedItems = JSON.parse(e.target.result);
+            const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+            const mergedList = [...cachedList, ...importedItems];
+            localStorage.setItem("cachedList", JSON.stringify(mergedList));
+            renderList(mergedList);
+            alert("List imported successfully!");
+          } catch (error) {
+            console.error("Error importing list:", error);
+            alert("Invalid file format. Please upload a valid JSON file.");
+          }
+        };
+        reader.readAsText(file);
+      };
     }
 
     function clearList() {
