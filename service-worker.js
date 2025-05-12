@@ -67,7 +67,7 @@ self.addEventListener('fetch', event => {
           // Fallback to offline HTML page for navigations
           if (request.mode === 'navigate') {
             return caches.match(request.url)
-            .then(response => response || caches.match('/Shopping-List/index.html'));
+            return caches.match('/Shopping-List/index.html');
           }
         });
     })
