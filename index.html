@@ -388,13 +388,32 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderList(items) {
+  // Check if items is an array
+  if (!Array.isArray(items)) {
+    console.error("Expected items to be an array, but got:", items);
+    return;
+  }
+
+  // Group items by category
+  const groupedItems = items.reduce((acc, item) => {
+    if (!acc[item.category]) acc[item.category] = [];
+    acc[item.category].push(item);
+    return acc;
+  }, {});
+
+  // Generate HTML for grouped items
+  let html = '';
+  Object.keys(groupedItems)
+    .sort() // Sort categories alphabetically
+    .forEach(category => {
+      html += `<li class="category-header">${category}</li>`;
+      groupedItems[category].forEach(item => {
+        html += createListItemHTML(item);
+      });
+    });
+
+  // Update the DOM with the generated HTML
   const listEl = document.getElementById("list");
-  const html = items.map(item => `
-    <li>
-      <span>${item.text} - <strong>${item.category}</strong></span>
-      <button class="removeBtn" onclick="removeItem('${item._id}')">Remove</button>
-    </li>
-  `).join("");
   listEl.innerHTML = html;
 }
 
