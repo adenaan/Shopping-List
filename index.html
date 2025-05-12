@@ -391,16 +391,6 @@ document.addEventListener("DOMContentLoaded", () => {
     return acc;
   }, {});
 
-  let html = '';
-  Object.keys(groupedItems)
-    .sort()
-    .forEach(category => {
-      html += `<li class="category-header">${category}</li>`;
-      groupedItems[category].forEach(item => {
-        html += `<li>${item.text} - <strong>${item.category}</strong></li>`;
-      });
-    });
-
   document.getElementById("list").innerHTML = html;
 }
     
@@ -477,6 +467,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   function createListItemHTML(item) {
+    const itemId = item._id || item.id; // Fallback to `id` if `_id` is unavailable
     return `<li><span>${item.text} - <strong>${item.category}</strong></span>
       <button class="removeBtn" onclick="removeItem('${item._id}')">Remove</button></li>`;
   }
