@@ -309,7 +309,8 @@
     const res = await fetch(`${apiUrl}/list?page=1&limit=10`);
     if (res.ok) {
       const data = await res.json();
-      renderList(data.items); // Pass the items array
+      renderList(data.items);
+      updatePaginationControls(data.page, data.totalPages); // Update controls
     } else {
       console.error("Failed to fetch items.");
     }
