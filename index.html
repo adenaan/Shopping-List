@@ -319,57 +319,11 @@
   }
 
   function useCachedList() {
-  const listEl = document.querySelector('#list'); // Ensure it's scoped correctly
-  if (!listEl) {
-    console.warn('List element not found');
-    return;
+    const cached = localStorage.getItem('cachedList');
+    listEl.innerHTML = cached
+      ? JSON.parse(cached).map(createListItemHTML).join("")
+      : '<li>No items available (Offline mode).</li>';
   }
-
-  const cached = localStorage.getItem('list');
-  if (!cached) {
-    console.log('No cached list found');
-    return;
-  }
-
-  let items;
-  try {
-    items = JSON.parse(cached);
-    if (!Array.isArray(items)) throw new Error('Cached data is not an array');
-  } catch (err) {
-    console.error('Failed to parse cached list:', err);
-    return;
-  }
-
-  const grouped = {};
-  items.forEach(item => {
-    if (!item || !item.category || !item.name) return;
-    if (!grouped[item.category]) {
-      grouped[item.category] = [];
-    }
-    grouped[item.category].push(item);
-  });
-
-  const sectionList = Object.entries(grouped)
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([category, items]) => {
-      const itemHTML = items.map(({ name }) => `
-        <li>
-          ${name}
-          <button data-remove="${name}" data-category="${category}">❌</button>
-        </li>
-      `).join('');
-      return `
-        <section>
-          <h2>${category}</h2>
-          <ul>${itemHTML}</ul>
-        </section>
-      `;
-    }).join('');
-
-  listEl.innerHTML = sectionList;
-}
-
-
 
   function renderList(items) {
     const groupedItems = items.reduce((acc, item) => {
