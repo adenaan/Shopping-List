@@ -388,16 +388,18 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderList(items) {
-  // Check if items is an array
+  // Ensure `items` is an array
   if (!Array.isArray(items)) {
     console.error("Expected items to be an array, but got:", items);
     return;
   }
 
-  // Group items by category
+  // Initialize groupedItems as an empty object
   const groupedItems = items.reduce((acc, item) => {
-    if (!acc[item.category]) acc[item.category] = [];
-    acc[item.category].push(item);
+    if (!acc[item.category]) {
+      acc[item.category] = []; // Initialize category array if it doesn't exist
+    }
+    acc[item.category].push(item); // Add the item to the appropriate category
     return acc;
   }, {});
 
@@ -416,7 +418,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const listEl = document.getElementById("list");
   listEl.innerHTML = html;
 }
-
     let html = '';
     Object.keys(groupedItems).sort().forEach(category => {
       html += `<li class="category-header">${category}</li>`;
