@@ -304,25 +304,17 @@
     }
   }
 
-  async function loadList() {
+ async function loadList() {
   try {
-    if (navigator.onLine) {
-      const res = await fetch(`${apiUrl}/list?page=1&limit=10`);
-      if (res.ok) {
-        const data = await res.json();
-        const items = data.items; // Extract the 'items' array from the response
-        localStorage.setItem('cachedList', JSON.stringify(items));
-        renderList(items);
-      } else {
-        console.error("Failed to fetch items from the server.");
-        useCachedList();
-      }
+    const res = await fetch(`${apiUrl}/list?page=1&limit=10`);
+    if (res.ok) {
+      const data = await res.json();
+      renderList(data.items); // Pass the items array
     } else {
-      useCachedList();
+      console.error("Failed to fetch items.");
     }
   } catch (err) {
     console.error("Error loading list:", err);
-    useCachedList();
   }
 }
 
@@ -388,35 +380,28 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderList(items) {
-  // Ensure `items` is an array
   if (!Array.isArray(items)) {
     console.error("Expected items to be an array, but got:", items);
     return;
   }
 
-  // Initialize groupedItems as an empty object
   const groupedItems = items.reduce((acc, item) => {
-    if (!acc[item.category]) {
-      acc[item.category] = []; // Initialize category array if it doesn't exist
-    }
-    acc[item.category].push(item); // Add the item to the appropriate category
+    if (!acc[item.category]) acc[item.category] = [];
+    acc[item.category].push(item);
     return acc;
   }, {});
 
-  // Generate HTML for grouped items
   let html = '';
   Object.keys(groupedItems)
-    .sort() // Sort categories alphabetically
+    .sort()
     .forEach(category => {
       html += `<li class="category-header">${category}</li>`;
       groupedItems[category].forEach(item => {
-        html += createListItemHTML(item);
+        html += `<li>${item.text} - <strong>${item.category}</strong></li>`;
       });
     });
 
-  // Update the DOM with the generated HTML
-  const listEl = document.getElementById("list");
-  listEl.innerHTML = html;
+  document.getElementById("list").innerHTML = html;
 }
     let html = '';
     Object.keys(groupedItems).sort().forEach(category => {
