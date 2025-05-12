@@ -424,26 +424,52 @@
   }
 
   function importList() {
-    importFileInput?.click();
-    importFileInput?.addEventListener("change", (event) => {
-      const file = event.target.files[0];
-      if (!file) return;
+  importFileInput?.click();
+  importFileInput?.addEventListener("change", (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
 
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const importedItems = JSON.parse(e.target.result);
-          const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-          const mergedList = [...cachedList, ...importedItems];
-          localStorage.setItem("cachedList", JSON.stringify(mergedList));
-          renderList(mergedList);
-        } catch (err) {
-          console.error("Error importing list:", err);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const importedItems = JSON.parse(e.target.result);
+        const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+        const mergedList = [...cachedList, ...importedItems];
+
+        // Update the localStorage with the merged list
+        localStorage.setItem("cachedList", JSON.stringify(mergedList));
+        renderList(mergedList);
+
+        // Sync imported items to the server if online
+        if (navigator.onLine) {
+          for (const item of importedItems) {
+            try {
+              const res = await fetch(`${apiUrl}/list`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(item),
+              });
+              if (!res.ok) {
+                console.error("Failed to upload item:", item);
+              }
+            } catch (err) {
+              console.error("Error uploading item:", err);
+            }
+          }
+          console.log("Imported items successfully synchronized with the server.");
+        } else {
+          // If offline, add imported items to offlineItems for later syncing
+          const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
+          localStorage.setItem("offlineItems", JSON.stringify([...offlineItems, ...importedItems]));
+          console.log("Imported items saved for syncing later (offline mode).");
         }
-      };
-      reader.readAsText(file);
-    });
-  }
+      } catch (err) {
+        console.error("Error importing list:", err);
+      }
+    };
+    reader.readAsText(file);
+  });
+}
 
   function clearList() {
     if (!confirm("Are you sure you want to clear the entire list?")) return;
