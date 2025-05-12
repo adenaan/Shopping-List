@@ -380,7 +380,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function renderList(items) {
+ function renderList(items) {
   if (!Array.isArray(items)) {
     console.error("Expected items to be an array, but got:", items);
     return;
@@ -392,20 +392,19 @@ document.addEventListener("DOMContentLoaded", () => {
     return acc;
   }, {});
 
-  document.getElementById("list").innerHTML = html;
+  let html = ''; // Declare and initialize the html variable
+
+  Object.keys(groupedItems)
+    .sort()
+    .forEach(category => {
+      html += `<li class="category-header">${category}</li>`;
+      groupedItems[category].forEach(item => {
+        html += createListItemHTML(item); // Use the helper function to generate HTML for each item
+      });
+    });
+
+  listEl.innerHTML = html; // Safely assign the generated HTML to the list element
 }
-    
-  async function addItemOffline(item) {
-    const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
-    offlineItems.push(item);
-    localStorage.setItem("offlineItems", JSON.stringify(offlineItems));
-
-    const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-    cachedList.push(item);
-    localStorage.setItem("cachedList", JSON.stringify(cachedList));
-    renderList(cachedList);
-  }
-
   async function removeItem(itemId) {
     if (!itemId) {
       console.error('Invalid item ID:', itemId);
