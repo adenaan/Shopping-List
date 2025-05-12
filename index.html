@@ -403,17 +403,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("list").innerHTML = html;
 }
-    let html = '';
-    Object.keys(groupedItems).sort().forEach(category => {
-      html += `<li class="category-header">${category}</li>`;
-      groupedItems[category].forEach(item => {
-        html += createListItemHTML(item);
-      });
-    });
-
-    listEl.innerHTML = html;
-  
-
+    
   async function addItemOffline(item) {
     const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
     offlineItems.push(item);
