@@ -155,13 +155,6 @@
 
     <ul id="list"></ul>
 
-    <!-- Pagination Controls -->
-<div class="pagination-controls">
-  <button id="prevPage" disabled>Previous</button>
-  <span class="pagination-info" id="paginationInfo">Page 1</span>
-  <button id="nextPage" disabled>Next</button>
-</div>
-
     <hr />
 
     <div class="control-buttons">
@@ -304,72 +297,27 @@
     }
   }
 
- async function loadList() {
-  try {
-    const res = await fetch(`${apiUrl}/list?page=1&limit=10`);
-    if (res.ok) {
-      const data = await res.json();
-      renderList(data.items);
-      updatePaginationControls(data.page, data.totalPages); // Update controls
-    } else {
-      console.error("Failed to fetch items.");
+  async function loadList() {
+    try {
+      if (navigator.onLine) {
+        const res = await fetch(`${apiUrl}/list`);
+        if (res.ok) {
+          const items = await res.json();
+          localStorage.setItem('cachedList', JSON.stringify(items));
+          renderList(items);
+        } else {
+          console.error("Failed to fetch items from the server.");
+          useCachedList();
+        }
+      } else {
+        useCachedList();
+      }
+    } catch (err) {
+      console.error("Error loading list:", err);
+      useCachedList();
     }
-  } catch (err) {
-    console.error("Error loading list:", err);
   }
-}
 
-   let currentPage = 1; // Track the current page
-const itemsPerPage = 10; // Number of items per page
-
-// Fetch a specific page of items from the backend
-async function fetchPage(page) {
-  try {
-    const res = await fetch(`${apiUrl}/list?page=${page}&limit=${itemsPerPage}`);
-    if (res.ok) {
-      const data = await res.json(); // Response includes items, page, totalPages, etc.
-      const items = data.items; // Extract items from response
-      renderList(items); // Render the items on the frontend
-      updatePaginationControls(data.page, data.totalPages); // Update navigation buttons
-    } else {
-      console.error("Failed to fetch paginated data from the server.");
-    }
-  } catch (err) {
-    console.error("Error fetching paginated data:", err);
-  }
-}
-
-// Update pagination controls (e.g., "Previous" and "Next" buttons)
-function updatePaginationControls(page, totalPages) {
-  const prevPageBtn = document.getElementById("prevPage");
-  const nextPageBtn = document.getElementById("nextPage");
-
-  prevPageBtn.disabled = page <= 1; // Disable "Previous" button on the first page
-  nextPageBtn.disabled = page >= totalPages; // Disable "Next" button on the last page
-
-  // Update the current page display
-  const paginationInfo = document.getElementById("paginationInfo");
-  paginationInfo.textContent = `Page ${page} of ${totalPages}`;
-}
-
-// Event listeners for pagination buttons
-document.getElementById("prevPage").addEventListener("click", () => {
-  if (currentPage > 1) {
-    currentPage--;
-    fetchPage(currentPage);
-  }
-});
-
-document.getElementById("nextPage").addEventListener("click", () => {
-  currentPage++;
-  fetchPage(currentPage);
-});
-
-// Fetch the first page when the page loads
-document.addEventListener("DOMContentLoaded", () => {
-  fetchPage(currentPage);
-});
-   
   function useCachedList() {
     const cached = localStorage.getItem('cachedList');
     if (cached) {
@@ -380,31 +328,35 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
- function renderList(items) {
-  if (!Array.isArray(items)) {
-    console.error("Expected items to be an array, but got:", items);
-    return;
-  }
+  function renderList(items) {
+    const groupedItems = items.reduce((acc, item) => {
+      if (!acc[item.category]) acc[item.category] = [];
+      acc[item.category].push(item);
+      return acc;
+    }, {});
 
-  const groupedItems = items.reduce((acc, item) => {
-    if (!acc[item.category]) acc[item.category] = [];
-    acc[item.category].push(item);
-    return acc;
-  }, {});
-
-  let html = ''; // Declare and initialize the html variable
-
-  Object.keys(groupedItems)
-    .sort()
-    .forEach(category => {
+    let html = '';
+    Object.keys(groupedItems).sort().forEach(category => {
       html += `<li class="category-header">${category}</li>`;
       groupedItems[category].forEach(item => {
-        html += createListItemHTML(item); // Use the helper function to generate HTML for each item
+        html += createListItemHTML(item);
       });
     });
 
-  listEl.innerHTML = html; // Safely assign the generated HTML to the list element
-}
+    listEl.innerHTML = html;
+  }
+
+  async function addItemOffline(item) {
+    const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
+    offlineItems.push(item);
+    localStorage.setItem("offlineItems", JSON.stringify(offlineItems));
+
+    const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+    cachedList.push(item);
+    localStorage.setItem("cachedList", JSON.stringify(cachedList));
+    renderList(cachedList);
+  }
+
   async function removeItem(itemId) {
     if (!itemId) {
       console.error('Invalid item ID:', itemId);
@@ -467,7 +419,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   function createListItemHTML(item) {
-    const itemId = item._id || item.id; // Fallback to `id` if `_id` is unavailable
     return `<li><span>${item.text} - <strong>${item.category}</strong></span>
       <button class="removeBtn" onclick="removeItem('${item._id}')">Remove</button></li>`;
   }
