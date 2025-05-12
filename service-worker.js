@@ -1,7 +1,7 @@
 const CACHE_NAME = 'shopping-list-cache-v1';
 const OFFLINE_URLS = [
   '/Shopping-List/',
-  'https://adenaan.github.io/Shopping-List/index.html',
+  '/Shopping-List/index.html',
   '/Shopping-List/icon-192.png',
   '/Shopping-List/manifest.json',
   '/Shopping-List/service-worker.js',
