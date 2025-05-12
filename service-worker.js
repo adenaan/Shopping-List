@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shopping-list-cache-v1';
+const CACHE_NAME = 'shopping-list-cache-v2';
 const OFFLINE_URLS = [
   '/Shopping-List/',
   '/Shopping-List/index.html',
