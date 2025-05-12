@@ -319,14 +319,14 @@
   }
 
   function useCachedList() {
-  const cached = localStorage.getItem('cachedList');
-  if (cached) {
-    const items = JSON.parse(cached);
-    renderList(items); // Use the same rendering logic as online mode
-  } else {
-    listEl.innerHTML = '<li>No items available (Offline mode).</li>';
+    const cached = localStorage.getItem('cachedList');
+    if (cached) {
+      const items = JSON.parse(cached);
+      renderList(items); // Use the same rendering logic as online mode
+    } else {
+      listEl.innerHTML = '<li>No items available (Offline mode).</li>';
+    }
   }
-}
 
   function renderList(items) {
     const groupedItems = items.reduce((acc, item) => {
@@ -358,15 +358,26 @@
   }
 
   async function removeItem(itemId) {
+    if (!itemId) {
+      console.error('Invalid item ID:', itemId);
+      return;
+    }
+
+    console.log('Attempting to remove item with ID:', itemId);
+
     let cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-    cachedList = cachedList.filter(item => String(item.id) !== String(itemId));
+    cachedList = cachedList.filter(item => String(item._id) !== String(itemId));
     localStorage.setItem("cachedList", JSON.stringify(cachedList));
     renderList(cachedList);
 
     if (navigator.onLine && !itemId.startsWith("offline-")) {
       try {
         const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
-        if (!res.ok) console.warn(`Failed to delete item with ID: ${itemId}`);
+        if (res.ok) {
+          console.log(`Successfully deleted item with ID: ${itemId}`);
+        } else {
+          console.warn(`Failed to delete item with ID: ${itemId}`);
+        }
       } catch (err) {
         console.error(`Error removing item with ID: ${itemId}`, err);
       }
@@ -409,7 +420,7 @@
 
   function createListItemHTML(item) {
     return `<li><span>${item.text} - <strong>${item.category}</strong></span>
-      <button class="removeBtn" onclick="removeItem('${item.id}')">Remove</button></li>`;
+      <button class="removeBtn" onclick="removeItem('${item._id}')">Remove</button></li>`;
   }
 
   function exportList() {
@@ -424,52 +435,52 @@
   }
 
   function importList() {
-  importFileInput?.click();
-  importFileInput?.addEventListener("change", (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+    importFileInput?.click();
+    importFileInput?.addEventListener("change", (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const importedItems = JSON.parse(e.target.result);
-        const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-        const mergedList = [...cachedList, ...importedItems];
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const importedItems = JSON.parse(e.target.result);
+          const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+          const mergedList = [...cachedList, ...importedItems];
 
-        // Update the localStorage with the merged list
-        localStorage.setItem("cachedList", JSON.stringify(mergedList));
-        renderList(mergedList);
+          // Update the localStorage with the merged list
+          localStorage.setItem("cachedList", JSON.stringify(mergedList));
+          renderList(mergedList);
 
-        // Sync imported items to the server if online
-        if (navigator.onLine) {
-          for (const item of importedItems) {
-            try {
-              const res = await fetch(`${apiUrl}/list`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(item),
-              });
-              if (!res.ok) {
-                console.error("Failed to upload item:", item);
+          // Sync imported items to the server if online
+          if (navigator.onLine) {
+            for (const item of importedItems) {
+              try {
+                const res = await fetch(`${apiUrl}/list`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(item),
+                });
+                if (!res.ok) {
+                  console.error("Failed to upload item:", item);
+                }
+              } catch (err) {
+                console.error("Error uploading item:", err);
               }
-            } catch (err) {
-              console.error("Error uploading item:", err);
             }
+            console.log("Imported items successfully synchronized with the server.");
+          } else {
+            // If offline, add imported items to offlineItems for later syncing
+            const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
+            localStorage.setItem("offlineItems", JSON.stringify([...offlineItems, ...importedItems]));
+            console.log("Imported items saved for syncing later (offline mode).");
           }
-          console.log("Imported items successfully synchronized with the server.");
-        } else {
-          // If offline, add imported items to offlineItems for later syncing
-          const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
-          localStorage.setItem("offlineItems", JSON.stringify([...offlineItems, ...importedItems]));
-          console.log("Imported items saved for syncing later (offline mode).");
+        } catch (err) {
+          console.error("Error importing list:", err);
         }
-      } catch (err) {
-        console.error("Error importing list:", err);
-      }
-    };
-    reader.readAsText(file);
-  });
-}
+      };
+      reader.readAsText(file);
+    });
+  }
 
   function clearList() {
     if (!confirm("Are you sure you want to clear the entire list?")) return;
@@ -479,44 +490,44 @@
       fetch(`${apiUrl}/list`, { method: "DELETE" }).catch(console.error);
     }
   }
-   // Share functionality
-    async function shareList() {
-      const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-      if (!cachedList.length) {
-        alert("Your shopping list is empty.");
-        return;
-      }
 
-      const shareableText = cachedList
-        .map(item => `${item.text} (${item.category})`)
-        .join("\n");
-
-      if (navigator.share) {
-        try {
-          await navigator.share({
-            title: "Shopping List",
-            text: shareableText,
-          });
-          alert("Shopping List shared successfully!");
-        } catch (error) {
-          console.error("Error sharing Shopping List:", error);
-          alert("An error occurred while sharing. Please try again.");
-        }
-      } else {
-        try {
-          await navigator.clipboard.writeText(shareableText);
-          alert("Shopping List copied to clipboard!");
-        } catch (error) {
-          console.error("Error copying to clipboard:", error);
-          alert("Unable to copy the list to clipboard. Please try again.");
-        }
-      }
+  // Share functionality
+  async function shareList() {
+    const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+    if (!cachedList.length) {
+      alert("Your shopping list is empty.");
+      return;
     }
 
-    // Attach share functionality to the Share button
-    const shareButton = document.getElementById("shareBtn");
-    shareButton?.addEventListener("click", shareList);
+    const shareableText = cachedList
+      .map(item => `${item.text} (${item.category})`)
+      .join("\n");
 
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Shopping List",
+          text: shareableText,
+        });
+        alert("Shopping List shared successfully!");
+      } catch (error) {
+        console.error("Error sharing Shopping List:", error);
+        alert("An error occurred while sharing. Please try again.");
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareableText);
+        alert("Shopping List copied to clipboard!");
+      } catch (error) {
+        console.error("Error copying to clipboard:", error);
+        alert("Unable to copy the list to clipboard. Please try again.");
+      }
+    }
+  }
+
+  // Attach share functionality to the Share button
+  const shareButton = document.getElementById("shareBtn");
+  shareButton?.addEventListener("click", shareList);
 
   document.addEventListener("DOMContentLoaded", loadList);
 </script>
