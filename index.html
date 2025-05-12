@@ -319,21 +319,39 @@
   }
 
   function useCachedList() {
-  const cached = localStorage.getItem('cachedList');
+  const cached = localStorage.getItem('list');
+  if (!cached) return;
 
-  try {
-    const parsed = cached ? JSON.parse(cached) : [];
+  const items = JSON.parse(cached);
+  const grouped = {};
 
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      listEl.innerHTML = parsed.map(createListItemHTML).join("");
-    } else {
-      listEl.innerHTML = '<li>No items available (Offline mode).</li>';
+  items.forEach(item => {
+    if (!grouped[item.category]) {
+      grouped[item.category] = [];
     }
-  } catch (e) {
-    console.error("Failed to parse cached list:", e);
-    listEl.innerHTML = '<li>Could not load items (corrupted cache).</li>';
-  }
+    grouped[item.category].push(item);
+  });
+
+  const sectionList = Object.entries(grouped)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([category, items]) => {
+      const itemHTML = items.map(({ name }) => `
+        <li>
+          ${name}
+          <button data-remove="${name}" data-category="${category}">❌</button>
+        </li>
+      `).join('');
+      return `
+        <section>
+          <h2>${category}</h2>
+          <ul>${itemHTML}</ul>
+        </section>
+      `;
+    }).join('');
+
+  listEl.innerHTML = sectionList;
 }
+
 
 
   function renderList(items) {
