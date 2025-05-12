@@ -319,11 +319,14 @@
   }
 
   function useCachedList() {
-    const cached = localStorage.getItem('cachedList');
-    listEl.innerHTML = cached
-      ? JSON.parse(cached).map(createListItemHTML).join("")
-      : '<li>No items available (Offline mode).</li>';
+  const cached = localStorage.getItem('cachedList');
+  if (cached) {
+    const items = JSON.parse(cached);
+    renderList(items); // Use the same rendering logic as online mode
+  } else {
+    listEl.innerHTML = '<li>No items available (Offline mode).</li>';
   }
+}
 
   function renderList(items) {
     const groupedItems = items.reduce((acc, item) => {
