@@ -187,11 +187,10 @@
       <button onclick="shareList()">Share</button>
     </div>
 
-    <div class="pagination">
-      <button id="prevBtn" disabled>Previous</button>
-      <span id="pageInfo">Page 1</span>
-      <button id="nextBtn" disabled>Next</button>
-    </div>
+    <div class="pagination-controls">
+  <button id="prevPageBtn" onclick="changePage(-1)">Previous</button>
+  <button id="nextPageBtn" onclick="changePage(1)">Next</button>
+  </div>
 
     <button id="installBtn">Install App</button>
     <input type="file" id="importFileInput" style="display: none;" />
@@ -282,7 +281,7 @@
     }
   }
 
-   function useCachedList() {
+  function useCachedList() {
     const cached = localStorage.getItem('cachedList');
     let items = [];
 
@@ -307,7 +306,6 @@
       }
     }, 100);
   }
-
 
   function updatePaginationControls() {
     prevBtn.disabled = currentPage === 1;
@@ -480,5 +478,7 @@
 
   document.addEventListener("DOMContentLoaded", () => loadList());
 </script>
+
+
 </body>
 </html>
