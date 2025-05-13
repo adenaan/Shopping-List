@@ -5,8 +5,7 @@ const OFFLINE_URLS = [
   '/Shopping-List/icon-192.png',
   '/Shopping-List/manifest.json',
   '/Shopping-List/service-worker.js',
-  '/Shopping-List/styles.css',  // Add CSS for offline viewing
-  '/Shopping-List/scripts.js',  // Add JS for offline functionality
+ 
 ];
 
 // Install event: cache the offline assets
