@@ -47,6 +47,7 @@ self.addEventListener('fetch', event => {
         return cachedResponse;
       }
 
+      // Fetch from network and cache response for future use
       return fetch(request)
         .then(networkResponse => {
           // Cache valid responses only
@@ -64,10 +65,18 @@ self.addEventListener('fetch', event => {
           return networkResponse;
         })
         .catch(() => {
-          // Fallback to offline HTML page for navigations
+          // If the network is unavailable and there's no cached response
+          // Serve the cached index.html for navigations
           if (request.mode === 'navigate') {
-            return caches.match(request.url)
             return caches.match('/Shopping-List/index.html');
+          }
+
+          // Optionally, return an empty fallback or a cached API response
+          if (request.url.includes('/list')) {
+            return new Response(
+              JSON.stringify({ message: 'Offline: Cannot fetch shopping list' }),
+              { status: 503, statusText: 'Service Unavailable' }
+            );
           }
         });
     })
