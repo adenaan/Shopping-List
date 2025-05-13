@@ -201,271 +201,329 @@
     
   </div>
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-  const VALID_USERNAME = "addie";
-  const VALID_PASSWORD = "1234";
-  const apiUrl = 'https://shoppinglistaddie.glitch.me';
-  const loginPopup = document.getElementById("loginPopup");
-  const loginForm = document.getElementById("loginForm");
-  const loginError = document.getElementById("loginError");
-  const content = document.getElementById("content");
-  const installBtn = document.getElementById("installBtn");
-  const input = document.getElementById("itemInput");
-  const categoryInput = document.getElementById("categoryInput");
-  const addBtn = document.getElementById("addBtn");
-  const listEl = document.getElementById("list");
-  const prevBtn = document.getElementById("prevBtn");
-  const nextBtn = document.getElementById("nextBtn");
-  const pageInfo = document.getElementById("pageInfo");
-  const importFileInput = document.getElementById("importFileInput");
+  document.addEventListener("DOMContentLoaded", () => {
+    const VALID_USERNAME = "addie";
+    const VALID_PASSWORD = "1234";
+    const apiUrl = 'https://shoppinglistaddie.glitch.me';
+    const loginPopup = document.getElementById("loginPopup");
+    const loginForm = document.getElementById("loginForm");
+    const loginError = document.getElementById("loginError");
+    const content = document.getElementById("content");
+    const installBtn = document.getElementById("installBtn");
+    const input = document.getElementById("itemInput");
+    const categoryInput = document.getElementById("categoryInput");
+    const addBtn = document.getElementById("addBtn");
+    const listEl = document.getElementById("list");
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const pageInfo = document.getElementById("pageInfo");
+    const importFileInput = document.getElementById("importFileInput");
+    const clearBtn = document.getElementById("clearBtn");
+    const shareBtn = document.getElementById("shareBtn");
 
-  const ITEMS_PER_PAGE = 10;
-  let currentPage = 0;
-  let totalItems = 0;
+    const ITEMS_PER_PAGE = 10;
+    let currentPage = 0;
+    let totalItems = 0;
 
-  const categories = [
-    "Fruits & Vegetables", "Dairy & Eggs", "Bakery & Bread", "Meat & Seafood",
-    "Snacks & Sweets", "Beverages", "Pantry Essentials", "Cleaning Supplies",
-    "Personal Care", "Other"
-  ];
+    const categories = [
+      "Fruits & Vegetables", "Dairy & Eggs", "Bakery & Bread", "Meat & Seafood",
+      "Snacks & Sweets", "Beverages", "Pantry Essentials", "Cleaning Supplies",
+      "Personal Care", "Other"
+    ];
 
-  loginForm?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const username = document.getElementById("username").value;
-    const password = document.getElementById("password").value;
+    loginForm?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
 
-    if (username === VALID_USERNAME && password === VALID_PASSWORD) {
-      loginPopup.style.display = "none";
-      content.style.display = "block";
-      loadList();
-    } else {
-      loginError.textContent = "Invalid username or password!";
-    }
-  });
-
-  function populateCategories() {
-    if (categoryInput) {
-      categoryInput.innerHTML = categories
-        .map(c => `<option value="${c}">${c}</option>`).join("");
-    }
-  }
-  populateCategories();
-
-  async function loadList() {
-    const endpoint = `${apiUrl}/list?page=${currentPage}&limit=${ITEMS_PER_PAGE}`;
-    try {
-      const response = await fetch(endpoint);
-      const data = await response.json();
-      totalItems = data.total || 0;
-      renderList(data.items);
-      updatePagination();
-      if ('caches' in window) {
-        const cache = await caches.open('shopping-list-cache');
-        cache.put(endpoint, new Response(JSON.stringify(data)));
-      }
-      localStorage.setItem("cachedList", JSON.stringify(data.items));
-    } catch (err) {
-      console.warn("Loading from cache due to error:", err);
-      const cachedData = await getCachedData(endpoint);
-      if (cachedData) {
-        renderList(cachedData.items || []);
-        updatePagination();
+      if (username === VALID_USERNAME && password === VALID_PASSWORD) {
+        loginPopup.style.display = "none";
+        content.style.display = "block";
+        loadList();
       } else {
-        alert("Could not load shopping list.");
-      }
-    }
-  }
-
-  async function getCachedData(url) {
-    if ('caches' in window) {
-      const cache = await caches.open('shopping-list-cache');
-      const cached = await cache.match(url);
-      if (cached) return await cached.json();
-    }
-    return null;
-  }
-
-  function updatePagination() {
-    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-    if (prevBtn) prevBtn.disabled = currentPage === 0;
-    if (nextBtn) nextBtn.disabled = currentPage >= totalPages - 1;
-    if (pageInfo) pageInfo.textContent = `Page ${currentPage + 1} of ${totalPages}`;
-  }
-
-  prevBtn?.addEventListener('click', () => {
-    if (currentPage > 0) {
-      currentPage--;
-      loadList();
-    }
-  });
-
-  nextBtn?.addEventListener('click', () => {
-    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-    if (currentPage < totalPages - 1) {
-      currentPage++;
-      loadList();
-    }
-  });
-
-  function renderList(items) {
-    listEl.innerHTML = "";
-    const grouped = items.reduce((acc, item) => {
-      if (!acc[item.category]) acc[item.category] = [];
-      acc[item.category].push(item);
-      return acc;
-    }, {});
-    categories.forEach(cat => {
-      if (grouped[cat]) {
-        const catHeader = document.createElement("li");
-        catHeader.className = "category-header";
-        catHeader.textContent = cat;
-        listEl.appendChild(catHeader);
-        grouped[cat].forEach(item => {
-          const li = document.createElement("li");
-          li.innerHTML = `<span>${item.text} - <strong>${item.category}</strong></span>
-            <button class="removeBtn" onclick="removeItem('${item._id}')">Remove</button>`;
-          listEl.appendChild(li);
-        });
+        loginError.textContent = "Invalid username or password!";
       }
     });
-  }
 
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/Shopping-List/service-worker.js')
-      .then(() => console.log("Service Worker registered"))
-      .catch(err => console.error("SW registration failed:", err));
-  }
-
-  let deferredPrompt;
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    installBtn.style.display = 'block';
-  });
-
-  installBtn?.addEventListener('click', async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') console.log("PWA installed");
-      installBtn.style.display = 'none';
-      deferredPrompt = null;
-    }
-  });
-
-  async function addItem(item) {
-    try {
-      if (navigator.onLine) {
-        const res = await fetch(`${apiUrl}/list`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(item)
-        });
-        if (!res.ok) throw new Error("Failed to add item");
-      } else {
-        console.warn("Offline: item not added to server");
+    function populateCategories() {
+      if (categoryInput) {
+        categoryInput.innerHTML = categories
+          .map(c => `<option value="${c}">${c}</option>`).join("");
       }
-    } catch (err) {
-      console.error("Add item failed:", err);
     }
-  }
+    populateCategories();
 
-  addBtn?.addEventListener("click", async () => {
-    const text = input.value.trim();
-    const category = categoryInput.value.trim();
-    if (!text || !category) return;
-    const newItem = { text, category };
-    await addItem(newItem);
-    input.value = "";
-    await loadList();
-  });
-
-  window.removeItem = async function(id) {
-    try {
-      const res = await fetch(`${apiUrl}/list/${id}`, { method: "DELETE" });
-      if (res.ok) await loadList();
-      else alert("Failed to delete item: " + res.statusText);
-    } catch (err) {
-      console.error("Remove failed:", err);
-    }
-  };
-
-  async function exportList() {
-    const cached = JSON.parse(localStorage.getItem("cachedList") || "[]");
-    if (!cached.length) return alert("No items to export");
-    const blob = new Blob([JSON.stringify(cached, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "shopping-list.json";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  async function importList() {
-    if (!importFileInput) return alert("Import input not found!");
-    importFileInput.click();
-    importFileInput.addEventListener("change", async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async (evt) => {
-        try {
-          const imported = JSON.parse(evt.target.result);
-          const cached = JSON.parse(localStorage.getItem("cachedList") || "[]");
-          const existing = new Set(cached.map(i => i.text + "|" + i.category));
-          for (const item of imported) {
-            const key = item.text + "|" + item.category;
-            if (!existing.has(key)) {
-              await addItem(item);
-            }
-          }
-          await loadList();
-        } catch (err) {
-          console.error("Import failed:", err);
+    async function loadList() {
+      const endpoint = `${apiUrl}/list?page=${currentPage}&limit=${ITEMS_PER_PAGE}`;
+      try {
+        const response = await fetch(endpoint);
+        const data = await response.json();
+        totalItems = data.total || 0;
+        renderList(data.items);
+        updatePagination();
+        if ('caches' in window) {
+          const cache = await caches.open('shopping-list-cache');
+          cache.put(endpoint, new Response(JSON.stringify(data)));
         }
-      };
-      reader.readAsText(file);
-    }, { once: true });
-  }
+        localStorage.setItem("cachedList", JSON.stringify(data.items));
+      } catch (err) {
+        console.warn("Loading from cache due to error:", err);
+        const cachedData = await getCachedData(endpoint);
+        if (cachedData) {
+          renderList(cachedData.items || []);
+          updatePagination();
+        } else {
+          alert("Could not load shopping list.");
+        }
+      }
+    }
 
-  async function clearList() {
-    if (!confirm("Clear entire list?")) return;
-    try {
+    async function getCachedData(url) {
+      if ('caches' in window) {
+        const cache = await caches.open('shopping-list-cache');
+        const cached = await cache.match(url);
+        if (cached) return await cached.json();
+      }
+      return null;
+    }
+
+    function updatePagination() {
+      const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+      if (prevBtn) prevBtn.disabled = currentPage === 0;
+      if (nextBtn) nextBtn.disabled = currentPage >= totalPages - 1;
+      if (pageInfo) pageInfo.textContent = `Page ${currentPage + 1} of ${totalPages}`;
+    }
+
+    prevBtn?.addEventListener('click', () => {
+      if (currentPage > 0) {
+        currentPage--;
+        loadList();
+      }
+    });
+
+    nextBtn?.addEventListener('click', () => {
+      const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+      if (currentPage < totalPages - 1) {
+        currentPage++;
+        loadList();
+      }
+    });
+
+    function renderList(items) {
+      listEl.innerHTML = "";
+      const grouped = items.reduce((acc, item) => {
+        if (!acc[item.category]) acc[item.category] = [];
+        acc[item.category].push(item);
+        return acc;
+      }, {});
+      categories.forEach(cat => {
+        if (grouped[cat]) {
+          const catHeader = document.createElement("li");
+          catHeader.className = "category-header";
+          catHeader.textContent = cat;
+          listEl.appendChild(catHeader);
+          grouped[cat].forEach(item => {
+            const li = document.createElement("li");
+            li.innerHTML = `<span>${item.text} - <strong>${item.category}</strong></span>
+              <button class="removeBtn" onclick="removeItem('${item._id}')">Remove</button>`;
+            listEl.appendChild(li);
+          });
+        }
+      });
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/Shopping-List/service-worker.js')
+        .then(() => console.log("Service Worker registered"))
+        .catch(err => console.error("SW registration failed:", err));
+    }
+
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.style.display = 'block';
+    });
+
+    installBtn?.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') console.log("PWA installed");
+        installBtn.style.display = 'none';
+        deferredPrompt = null;
+      }
+    });
+
+    // Queue actions for offline
+    function queueAction(action) {
+      const actionQueue = JSON.parse(localStorage.getItem("offlineQueue") || "[]");
+      actionQueue.push(action);
+      localStorage.setItem("offlineQueue", JSON.stringify(actionQueue));
+    }
+
+    // Process queued actions when online
+    function processQueue() {
       if (navigator.onLine) {
-        await fetch(`${apiUrl}/list`, { method: "DELETE" });
+        const actionQueue = JSON.parse(localStorage.getItem("offlineQueue") || "[]");
+        if (actionQueue.length > 0) {
+          actionQueue.forEach(async (action) => {
+            try {
+              const { method, url, body } = action;
+              const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+              if (res.ok) {
+                console.log(`Processed offline action: ${method} ${url}`);
+              } else {
+                console.error(`Failed to process action: ${method} ${url}`);
+              }
+            } catch (err) {
+              console.error("Error processing queued action:", err);
+            }
+          });
+          localStorage.removeItem("offlineQueue"); // Clear the queue after processing
+        }
+      }
+    }
+
+    // Listen for online/offline events
+    window.addEventListener('online', processQueue);
+    window.addEventListener('offline', () => { console.log("You are offline. Actions will be queued."); });
+
+    async function addItem(item) {
+      if (navigator.onLine) {
+        try {
+          const res = await fetch(`${apiUrl}/list`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(item)
+          });
+          if (!res.ok) throw new Error("Failed to add item");
+        } catch (err) {
+          console.error("Add item failed:", err);
+        }
+      } else {
+        // Queue the add action if offline
+        console.log("You are offline. Queueing add action.");
+        queueAction({
+          method: "POST",
+          url: `${apiUrl}/list`,
+          body: item
+        });
+      }
+    }
+
+    addBtn?.addEventListener("click", async () => {
+      const text = input.value.trim();
+      const category = categoryInput.value.trim();
+      if (!text || !category) return;
+      const newItem = { text, category };
+      await addItem(newItem);
+      input.value = "";
+      await loadList();
+    });
+
+    window.removeItem = async function(id) {
+      try {
+        if (navigator.onLine) {
+          const res = await fetch(`${apiUrl}/list/${id}`, { method: "DELETE" });
+          if (res.ok) await loadList();
+          else alert("Failed to delete item: " + res.statusText);
+        } else {
+          // Queue the remove action if offline
+          console.log("You are offline. Queueing remove action.");
+          queueAction({
+            method: "DELETE",
+            url: `${apiUrl}/list/${id}`,
+            body: {}
+          });
+        }
+      } catch (err) {
+        console.error("Remove failed:", err);
+      }
+    };
+
+    // Export list
+    async function exportList() {
+      const cached = JSON.parse(localStorage.getItem("cachedList") || "[]");
+      if (!cached.length) return alert("No items to export");
+      const blob = new Blob([JSON.stringify(cached, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "shopping-list.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Import list
+    async function importList() {
+      if (!importFileInput) return alert("Import input not found!");
+      importFileInput.click();
+      importFileInput.addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+          try {
+            const imported = JSON.parse(evt.target.result);
+            const cached = JSON.parse(localStorage.getItem("cachedList") || "[]");
+            const existing = new Set(cached.map(i => i.text + "|" + i.category));
+            const newItems = imported.filter(item => !existing.has(item.text + "|" + item.category));
+            if (newItems.length) {
+              for (const item of newItems) {
+                await addItem(item);
+              }
+              alert(`${newItems.length} items imported`);
+              loadList();
+            } else {
+              alert("No new items to import.");
+            }
+          } catch (err) {
+            alert("Invalid file format.");
+          }
+        };
+        reader.readAsText(file);
+      });
+    }
+
+    // Clear list
+    function clearList() {
+      if (confirm("Are you sure you want to clear all items?")) {
         localStorage.removeItem("cachedList");
-        await loadList();
-      } else {
-        alert("Offline. Clear when back online.");
+        loadList();
       }
-    } catch (err) {
-      console.error("Clear failed:", err);
     }
-  }
 
-  async function shareList() {
-    const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-    if (!cachedList.length) return alert("Nothing to share.");
-    const text = cachedList.map(i => `${i.text} (${i.category})`).join("\n");
-    try {
+    // Share list
+    function shareList() {
       if (navigator.share) {
-        await navigator.share({ title: "Shopping List", text });
+        navigator.share({
+          title: 'Shopping List by Addie',
+          text: 'Here is my shopping list!',
+          url: window.location.href
+        }).then(() => {
+          console.log("List shared successfully!");
+        }).catch((err) => {
+          console.error("Error sharing the list:", err);
+        });
       } else {
-        await navigator.clipboard.writeText(text);
-        alert("Copied to clipboard!");
+        alert("Sharing is not supported on this device.");
       }
-    } catch (err) {
-      console.error("Share failed:", err);
     }
-  }
 
-  document.getElementById("exportBtn")?.addEventListener("click", exportList);
-  document.getElementById("importBtn")?.addEventListener("click", importList);
-  document.getElementById("clearBtn")?.addEventListener("click", clearList);
-  document.getElementById("shareBtn")?.addEventListener("click", shareList);
-});
+    // Attach the event listeners
+    window.exportList = exportList;
+    window.importList = importList;
+    window.clearList = clearList;
+    window.shareList = shareList;
+
+    clearBtn?.addEventListener('click', clearList);
+    shareBtn?.addEventListener('click', shareList);
+
+    processQueue(); // Ensure queued actions are processed when app comes online
+  });
 </script>
+
 
 
 
