@@ -200,6 +200,7 @@
   </div>
 
 <script>
+document.addEventListener("DOMContentLoaded", () => {
   const VALID_USERNAME = "addie";
   const VALID_PASSWORD = "1234";
   const apiUrl = 'https://shoppinglistaddie.glitch.me';
@@ -222,16 +223,9 @@
   let totalItems = 0;
 
   const categories = [
-    "Fruits & Vegetables",
-    "Dairy & Eggs",
-    "Bakery & Bread",
-    "Meat & Seafood",
-    "Snacks & Sweets",
-    "Beverages",
-    "Pantry Essentials",
-    "Cleaning Supplies",
-    "Personal Care",
-    "Other"
+    "Fruits & Vegetables", "Dairy & Eggs", "Bakery & Bread", "Meat & Seafood",
+    "Snacks & Sweets", "Beverages", "Pantry Essentials", "Cleaning Supplies",
+    "Personal Care", "Other"
   ];
 
   loginForm.addEventListener("submit", (event) => {
@@ -259,7 +253,6 @@
     try {
       const response = await fetch(`${apiUrl}/list?page=${currentPage}&limit=${ITEMS_PER_PAGE}`);
       const data = await response.json();
-
       if (response.ok) {
         totalItems = data.total;
         updateItems(data.items);
@@ -279,21 +272,16 @@
 
     try {
       items = JSON.parse(cached) || [];
-      if (!Array.isArray(items)) {
-        console.error("Cached list is not an array. Resetting to an empty array.");
-        items = [];
-      }
+      if (!Array.isArray(items)) items = [];
     } catch (err) {
       console.error("Error parsing cached list:", err);
     }
 
-    const initialLoad = items.slice(0, 20);
-    renderList(initialLoad);
-
+    renderList(items.slice(0, 20));
     setTimeout(() => {
       const remainingItems = items.slice(20);
       if (remainingItems.length) {
-        renderList([...initialLoad, ...remainingItems]);
+        renderList([...items.slice(0, 20), ...remainingItems]);
       }
     }, 100);
   }
@@ -301,7 +289,6 @@
   function updateItems(items) {
     const listContainer = document.getElementById('list-container');
     listContainer.innerHTML = '';
-
     items.forEach(item => {
       const itemElement = document.createElement('div');
       itemElement.textContent = item.name;
@@ -338,13 +325,11 @@
       acc[item.category].push(item);
       return acc;
     }, {});
-
     Object.keys(groupedItems).sort().forEach(category => {
       const categoryHeader = document.createElement("li");
       categoryHeader.className = "category-header";
       categoryHeader.textContent = category;
       listEl.appendChild(categoryHeader);
-
       groupedItems[category].forEach(item => {
         const listItem = document.createElement("li");
         listItem.innerHTML = `<span>${item.text} - <strong>${item.category}</strong></span>
@@ -381,7 +366,6 @@
     const text = input.value.trim();
     const category = categoryInput.value.trim();
     if (!text || !category) return;
-
     const newItem = { text, category };
     try {
       if (navigator.onLine) {
@@ -406,9 +390,7 @@
     try {
       if (navigator.onLine) {
         const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
-        if (res.ok) {
-          await loadList();
-        }
+        if (res.ok) await loadList();
       } else {
         console.warn("Offline. Item will sync later.");
       }
@@ -433,7 +415,6 @@
     importFileInput.addEventListener("change", async (event) => {
       const file = event.target.files[0];
       if (!file) return;
-
       const reader = new FileReader();
       reader.onload = async (e) => {
         try {
@@ -484,8 +465,7 @@
       console.error("Error sharing Shopping List:", err);
     }
   }
-
-  document.addEventListener("DOMContentLoaded", () => loadList());
+});
 </script>
 
 
