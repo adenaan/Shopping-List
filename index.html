@@ -343,7 +343,8 @@ document.addEventListener("DOMContentLoaded", () => {
     installBtn.style.display = 'block';
   });
 
-  installBtn?.addEventListener('click', async () => {
+  if (installBtn) {
+  installBtn.addEventListener('click', async () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
@@ -352,6 +353,8 @@ document.addEventListener("DOMContentLoaded", () => {
       installBtn.style.display = 'none';
     }
   });
+}
+
 
   addBtn.addEventListener("click", async () => {
     const text = input.value.trim();
