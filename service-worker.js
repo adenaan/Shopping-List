@@ -1,10 +1,12 @@
-const CACHE_NAME = 'shopping-list-cache-v2';
+const CACHE_NAME = 'shopping-list-cache-v3';  // Updated cache version
 const OFFLINE_URLS = [
   '/Shopping-List/',
   '/Shopping-List/index.html',
   '/Shopping-List/icon-192.png',
   '/Shopping-List/manifest.json',
   '/Shopping-List/service-worker.js',
+  '/Shopping-List/styles.css',  // Add CSS for offline viewing
+  '/Shopping-List/scripts.js',  // Add JS for offline functionality
 ];
 
 // Install event: cache the offline assets
@@ -41,44 +43,93 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  event.respondWith(
-    caches.match(request).then(cachedResponse => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
+  // Handle cached response for navigation requests
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      caches.match(request).then(cachedResponse => {
+        if (cachedResponse) return cachedResponse;
+        // Serve fallback for offline navigation
+        return caches.match('/Shopping-List/index.html');
+      })
+    );
+    return;
+  }
 
-      // Fetch from network and cache response for future use
-      return fetch(request)
-        .then(networkResponse => {
-          // Cache valid responses only
-          if (
-            networkResponse &&
-            networkResponse.status === 200 &&
-            networkResponse.type === 'basic'
-          ) {
-            return caches.open(CACHE_NAME).then(cache => {
-              cache.put(request, networkResponse.clone());
-              return networkResponse;
-            });
-          }
+  // API Request handling for offline fallback
+  if (request.url.includes('/list')) {
+    event.respondWith(
+      caches.match(request).then(cachedResponse => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
 
-          return networkResponse;
-        })
-        .catch(() => {
-          // If the network is unavailable and there's no cached response
-          // Serve the cached index.html for navigations
-          if (request.mode === 'navigate') {
-            return caches.match('/Shopping-List/index.html');
-          }
+        return fetch(request)
+          .then(networkResponse => {
+            if (
+              networkResponse &&
+              networkResponse.status === 200 &&
+              networkResponse.type === 'basic'
+            ) {
+              return caches.open(CACHE_NAME).then(cache => {
+                cache.put(request, networkResponse.clone());
+                return networkResponse;
+              });
+            }
 
-          // Optionally, return an empty fallback or a cached API response
-          if (request.url.includes('/list')) {
+            return networkResponse;
+          })
+          .catch(() => {
+            // Return offline message when the network is unavailable
             return new Response(
               JSON.stringify({ message: 'Offline: Cannot fetch shopping list' }),
               { status: 503, statusText: 'Service Unavailable' }
             );
-          }
-        });
+          });
+      })
+    );
+    return;
+  }
+
+  // Default response: serve from cache if available
+  event.respondWith(
+    caches.match(request).then(cachedResponse => {
+      return cachedResponse || fetch(request);
     })
   );
 });
+
+// Optionally add background sync support if desired
+self.addEventListener('sync', event => {
+  if (event.tag === 'sync-shopping-list') {
+    event.waitUntil(syncShoppingListData());
+  }
+});
+
+// Example background sync function to sync items when online
+async function syncShoppingListData() {
+  const offlineData = await getOfflineShoppingList();
+  if (offlineData && offlineData.length > 0) {
+    try {
+      const response = await fetch('/Shopping-List/list/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(offlineData),
+      });
+      if (response.ok) {
+        console.log('Shopping list synced successfully.');
+      } else {
+        console.error('Failed to sync shopping list');
+      }
+    } catch (err) {
+      console.error('Error during sync:', err);
+    }
+  }
+}
+
+// Helper function to retrieve offline data
+async function getOfflineShoppingList() {
+  // Implement logic to retrieve offline cached data
+  // This can be done using IndexedDB or localStorage
+  const cachedList = JSON.parse(localStorage.getItem('cachedList') || '[]');
+  return cachedList;
+}
