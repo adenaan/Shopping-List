@@ -8,7 +8,8 @@
   <meta name="theme-color" content="#4CAF50" />
   <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="apple-touch-icon" href="/Shopping-List/icon-192.png" />
-  <input type="file" id="importFileInput" style="display:none" />
+  <input type="file" id="importFileInput" style="display: none;">
+  
 
   <title>Shopping List by Addie</title>
   <style>
@@ -255,7 +256,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await response.json();
       if (response.ok) {
         totalItems = data.total;
-        updateItems(data.items);
+        renderList(data.items); // replaced updateItems
         updatePagination();
       } else {
         throw new Error('Failed to load items');
@@ -284,16 +285,6 @@ document.addEventListener("DOMContentLoaded", () => {
         renderList([...items.slice(0, 20), ...remainingItems]);
       }
     }, 100);
-  }
-
-  function updateItems(items) {
-    const listContainer = document.getElementById('list-container');
-    listContainer.innerHTML = '';
-    items.forEach(item => {
-      const itemElement = document.createElement('div');
-      itemElement.textContent = item.name;
-      listContainer.appendChild(itemElement);
-    });
   }
 
   function updatePagination() {
@@ -386,7 +377,7 @@ document.addEventListener("DOMContentLoaded", () => {
     input.value = "";
   });
 
-  async function removeItem(itemId) {
+  window.removeItem = async function(itemId) {
     try {
       if (navigator.onLine) {
         const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
@@ -411,6 +402,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function importList() {
+    if (!importFileInput) return alert("Missing file input element for import!");
+
     importFileInput.click();
     importFileInput.addEventListener("change", async (event) => {
       const file = event.target.files[0];
@@ -428,7 +421,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       };
       reader.readAsText(file);
-    });
+    }, { once: true }); // prevent multiple bindings
   }
 
   async function clearList() {
@@ -467,7 +460,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 </script>
-
 
 </body>
 </html>
