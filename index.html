@@ -251,36 +251,28 @@
   }
   populateCategories();
 
-  let currentPage = 0;
-  let totalPages = 1;
+  // Define the number of items per page
   const ITEMS_PER_PAGE = 10;
 
-  async function loadList(page = 1) {
-    currentPage = page;
-    listEl.innerHTML = "<p>Loading items...</p>";
+  async function loadList() {
     try {
-      if (navigator.onLine) {
-        const res = await fetch(`${apiUrl}/list?page=${page}&limit=${itemsPerPage}`);
-        if (res.ok) {
-          const data = await res.json();
-          const { items, totalPages: serverTotalPages } = data;
-          totalPages = serverTotalPages;
-          localStorage.setItem('cachedList', JSON.stringify(items));
-          renderList(items);
-          updatePaginationControls();
+        // Fetch the data from the server
+        const response = await fetch(`${serverUrl}/list?page=${currentPage}&limit=${ITEMS_PER_PAGE}`);
+        const data = await response.json();
+
+        // Check if data is successfully fetched
+        if (response.ok) {
+            // Update the items and pagination
+            updateItems(data.items);
+            updatePagination(data.total);
         } else {
-          console.error("Failed to fetch items.");
-          useCachedList();
+            throw new Error('Failed to load items');
         }
-      } else {
-        console.warn("Device offline. Using cached items.");
-        useCachedList();
-      }
-    } catch (err) {
-      console.error("Error loading list:", err);
-      useCachedList();
+    } catch (error) {
+        console.error('Error loading list:', error);
+        alert('Error loading list');
     }
-  }
+}
 
   function useCachedList() {
     const cached = localStorage.getItem('cachedList');
@@ -308,31 +300,45 @@
     }, 100);
   }
 
-  function updatePaginationControls() {
-  const prevButton = document.getElementById("prevButton");
-  const nextButton = document.getElementById("nextButton");
-  const pageInfo = document.getElementById("pageInfo");
+  // Function to update the items list
+function updateItems(items) {
+    const listContainer = document.getElementById('list-container');
+    listContainer.innerHTML = ''; // Clear the existing list
 
-  if (prevButton) prevButton.disabled = currentPage <= 0;
-  if (nextButton) nextButton.disabled = currentPage >= totalPages - 1;
-  if (pageInfo) pageInfo.textContent = `Page ${currentPage + 1} of ${totalPages}`;
+    items.forEach(item => {
+        const itemElement = document.createElement('div');
+        itemElement.textContent = item.name;
+        listContainer.appendChild(itemElement);
+    });
 }
 
-// Add this once when initializing:
-document.getElementById("prevButton").addEventListener("click", () => {
-  if (currentPage > 0) {
-    currentPage--;
-    loadList();
-  }
+  // Function to update pagination controls
+function updatePagination(totalItems) {
+    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+
+    // Disable/Enable pagination buttons
+    prevButton.disabled = currentPage === 0;
+    nextBtn.disabled = currentPage === totalPages - 1;
+
+    // Update pagination info text
+    pageInfo.textContent = `Page ${currentPage + 1} of ${totalPages}`;
+}
+
+
+prevButton.addEventListener('click', () => {
+    if (currentPage > 0) {
+        currentPage--;
+        loadList();
+    }
 });
 
-document.getElementById("nextButton").addEventListener("click", () => {
-  if (currentPage < totalPages - 1) {
-    currentPage++;
-    loadList();
-  }
+nextBtn.addEventListener('click', () => {
+    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+    if (currentPage < totalPages - 1) {
+        currentPage++;
+        loadList();
+    }
 });
-
 
 
   function renderList(items) {
