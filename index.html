@@ -282,6 +282,33 @@
     }
   }
 
+   function useCachedList() {
+    const cached = localStorage.getItem('cachedList');
+    let items = [];
+
+    try {
+      items = JSON.parse(cached) || [];
+      if (!Array.isArray(items)) {
+        console.error("Cached list is not an array. Resetting to an empty array.");
+        items = [];
+      }
+    } catch (err) {
+      console.error("Error parsing cached list:", err);
+    }
+
+    const initialLoad = items.slice(0, 20); // Load first 20 items
+    renderList(initialLoad);
+
+    // Lazy load remaining items
+    setTimeout(() => {
+      const remainingItems = items.slice(20);
+      if (remainingItems.length) {
+        renderList([...initialLoad, ...remainingItems]);
+      }
+    }, 100);
+  }
+
+
   function updatePaginationControls() {
     prevBtn.disabled = currentPage === 1;
     nextBtn.disabled = currentPage === totalPages;
