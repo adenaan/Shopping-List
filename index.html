@@ -475,7 +475,12 @@
           try {
             const importedItems = JSON.parse(e.target.result);
             const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-            const mergedList = [...cachedList, ...importedItems];
+            const mergedList = [...cachedList];
+            importedItems.forEach(item => {
+              if (!cachedList.some(cachedItem => cachedItem.text === item.text && cachedItem.category === item.category)) {
+                mergedList.push(item);
+              }
+            });
 
             localStorage.setItem("cachedList", JSON.stringify(mergedList));
             renderList(mergedList);
@@ -492,6 +497,7 @@
                   if (res.ok) {
                     const savedItem = await res.json();
                     syncedItems.push(savedItem);
+                    updateLocalItemId(item.id, savedItem._id); // Update local ID with server ID
                   } else {
                     console.error("Failed to upload item:", item);
                   }
