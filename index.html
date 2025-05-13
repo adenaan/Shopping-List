@@ -258,17 +258,16 @@ document.addEventListener("DOMContentLoaded", () => {
   async function loadList() {
     try {
       const response = await fetch(`${apiUrl}/list?page=${currentPage}&limit=${ITEMS_PER_PAGE}`);
-      const data = await response.json();
-      if (response.ok) {
-        totalItems = data.total || 0; // Ensure totalItems is set
-        renderList(data.items);
-        updatePagination();
-      } else {
-        throw new Error('Failed to load items');
+      if (!response.ok) {
+        throw new Error('Failed to fetch list');
       }
+      const data = await response.json();
+      totalItems = data.total || 0; // Ensure totalItems is set
+      renderList(data.items);
+      updatePagination();
     } catch (error) {
       console.error('Error loading list:', error);
-      alert('Error loading list');
+      alert('Error loading list: ' + error.message);
     }
   }
 
@@ -375,6 +374,8 @@ document.addEventListener("DOMContentLoaded", () => {
           });
           if (res.ok) {
             await loadList();
+          } else {
+            console.error('Failed to add item:', res.statusText);
           }
         } else {
           console.warn("Offline. Item will sync later.");
