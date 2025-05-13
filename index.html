@@ -294,6 +294,12 @@ document.addEventListener("DOMContentLoaded", () => {
   if (pageInfo) pageInfo.textContent = `Page ${currentPage + 1} of ${totalPages}`;
 }
 
+   prevBtn?.addEventListener('click', () => {
+    if (currentPage > 0) {
+      currentPage--;
+      loadList();
+    }
+  });
 
   nextBtn?.addEventListener('click', () => {
     const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
