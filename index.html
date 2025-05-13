@@ -273,21 +273,20 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updatePagination() {
-  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-  
-  if (prevBtn) {
-    prevBtn.disabled = currentPage === 0;
+    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+    
+    if (prevBtn) {
+      prevBtn.disabled = currentPage === 0;
+    }
+    
+    if (nextBtn) {
+      nextBtn.disabled = currentPage >= totalPages - 1;
+    }
+    
+    if (pageInfo) {
+      pageInfo.textContent = `Page ${currentPage + 1} of ${totalPages}`;
+    }
   }
-  
-  if (nextBtn) {
-    nextBtn.disabled = currentPage >= totalPages - 1;
-  }
-  
-  if (pageInfo) {
-    pageInfo.textContent = `Page ${currentPage + 1} of ${totalPages}`;
-  }
-}
-
 
   // Check if prevBtn and nextBtn are available
   if (prevBtn) {
@@ -464,7 +463,7 @@ document.addEventListener("DOMContentLoaded", () => {
         await navigator.clipboard.writeText(shareableText);
         alert("Shopping List copied to clipboard!");
       }
-    } catch (err) {
+    } catch (err)      {
       console.error("Error sharing Shopping List:", err);
     }
   }
