@@ -229,24 +229,29 @@ document.addEventListener("DOMContentLoaded", () => {
     "Personal Care", "Other"
   ];
 
-  loginForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const username = document.getElementById("username").value;
-    const password = document.getElementById("password").value;
+  // Check if login elements are available
+  if (loginForm) {
+    loginForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
 
-    if (username === VALID_USERNAME && password === VALID_PASSWORD) {
-      loginPopup.style.display = "none";
-      content.style.display = "block";
-      loadList();
-    } else {
-      loginError.textContent = "Invalid username or password!";
-    }
-  });
+      if (username === VALID_USERNAME && password === VALID_PASSWORD) {
+        loginPopup.style.display = "none";
+        content.style.display = "block";
+        loadList();
+      } else {
+        loginError.textContent = "Invalid username or password!";
+      }
+    });
+  }
 
   function populateCategories() {
-    categoryInput.innerHTML = categories
-      .map(category => `<option value="${category}">${category}</option>`)
-      .join("");
+    if (categoryInput) {
+      categoryInput.innerHTML = categories
+        .map(category => `<option value="${category}">${category}</option>`)
+        .join("");
+    }
   }
   populateCategories();
 
@@ -274,40 +279,47 @@ document.addEventListener("DOMContentLoaded", () => {
     pageInfo.textContent = `Page ${currentPage + 1} of ${totalPages}`;
   }
 
-  prevBtn.addEventListener('click', () => {
-    if (currentPage > 0) {
-      currentPage--;
-      loadList();
-    }
-  });
+  // Check if prevBtn and nextBtn are available
+  if (prevBtn) {
+    prevBtn.addEventListener('click', () => {
+      if (currentPage > 0) {
+        currentPage--;
+        loadList();
+      }
+    });
+  }
 
-  nextBtn.addEventListener('click', () => {
-    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-    if (currentPage < totalPages - 1) {
-      currentPage++;
-      loadList();
-    }
-  });
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => {
+      const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+      if (currentPage < totalPages - 1) {
+        currentPage++;
+        loadList();
+      }
+    });
+  }
 
   function renderList(items) {
-    listEl.innerHTML = "";
-    const groupedItems = items.reduce((acc, item) => {
-      if (!acc[item.category]) acc[item.category] = [];
-      acc[item.category].push(item);
-      return acc;
-    }, {});
-    Object.keys(groupedItems).sort().forEach(category => {
-      const categoryHeader = document.createElement("li");
-      categoryHeader.className = "category-header";
-      categoryHeader.textContent = category;
-      listEl.appendChild(categoryHeader);
-      groupedItems[category].forEach(item => {
-        const listItem = document.createElement("li");
-        listItem.innerHTML = `<span>${item.text} - <strong>${item.category}</strong></span>
-          <button class="removeBtn" onclick="removeItem('${item._id}')">Remove</button>`;
-        listEl.appendChild(listItem);
+    if (listEl) {
+      listEl.innerHTML = "";
+      const groupedItems = items.reduce((acc, item) => {
+        if (!acc[item.category]) acc[item.category] = [];
+        acc[item.category].push(item);
+        return acc;
+      }, {});
+      Object.keys(groupedItems).sort().forEach(category => {
+        const categoryHeader = document.createElement("li");
+        categoryHeader.className = "category-header";
+        categoryHeader.textContent = category;
+        listEl.appendChild(categoryHeader);
+        groupedItems[category].forEach(item => {
+          const listItem = document.createElement("li");
+          listItem.innerHTML = `<span>${item.text} - <strong>${item.category}</strong></span>
+            <button class="removeBtn" onclick="removeItem('${item._id}')">Remove</button>`;
+          listEl.appendChild(listItem);
+        });
       });
-    });
+    }
   }
 
   if ('serviceWorker' in navigator) {
@@ -320,7 +332,9 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    installBtn.style.display = 'block';
+    if (installBtn) {
+      installBtn.style.display = 'block';
+    }
   });
 
   if (installBtn) {
@@ -335,29 +349,32 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  addBtn.addEventListener("click", async () => {
-    const text = input.value.trim();
-    const category = categoryInput.value.trim();
-    if (!text || !category) return;
-    const newItem = { text, category };
-    try {
-      if (navigator.onLine) {
-        const res = await fetch(`${apiUrl}/list`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(newItem),
-        });
-        if (res.ok) {
-          await loadList();
+  // Check if addBtn is available before adding event listener
+  if (addBtn) {
+    addBtn.addEventListener("click", async () => {
+      const text = input.value.trim();
+      const category = categoryInput.value.trim();
+      if (!text || !category) return;
+      const newItem = { text, category };
+      try {
+        if (navigator.onLine) {
+          const res = await fetch(`${apiUrl}/list`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(newItem),
+          });
+          if (res.ok) {
+            await loadList();
+          }
+        } else {
+          console.warn("Offline. Item will sync later.");
         }
-      } else {
-        console.warn("Offline. Item will sync later.");
+      } catch (err) {
+        console.error("Error adding item:", err);
       }
-    } catch (err) {
-      console.error("Error adding item:", err);
-    }
-    input.value = "";
-  });
+      input.value = "";
+    });
+  }
 
   window.removeItem = async function(itemId) {
     try {
@@ -372,6 +389,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // File import and export functionality
   async function exportList() {
     const cached = JSON.parse(localStorage.getItem("cachedList") || "[]");
     const blob = new Blob([JSON.stringify(cached, null, 2)], { type: "application/json" });
@@ -442,6 +460,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 </script>
+
 
 <input type="file" id="importFileInput" style="display: none;" />
 </body>
