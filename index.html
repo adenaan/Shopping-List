@@ -200,7 +200,7 @@
     <button id="installBtn">Install App</button>
     
   </div>
- <script>
+<script>
 document.addEventListener("DOMContentLoaded", () => {
   const VALID_USERNAME = "addie";
   const VALID_PASSWORD = "1234";
@@ -229,7 +229,6 @@ document.addEventListener("DOMContentLoaded", () => {
     "Personal Care", "Other"
   ];
 
-  // Login
   loginForm?.addEventListener("submit", (event) => {
     event.preventDefault();
     const username = document.getElementById("username").value;
@@ -287,14 +286,13 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updatePagination() {
-  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+    if (prevBtn) prevBtn.disabled = currentPage === 0;
+    if (nextBtn) nextBtn.disabled = currentPage >= totalPages - 1;
+    if (pageInfo) pageInfo.textContent = `Page ${currentPage + 1} of ${totalPages}`;
+  }
 
-  if (prevBtn) prevBtn.disabled = currentPage === 0;
-  if (nextBtn) nextBtn.disabled = currentPage >= totalPages - 1;
-  if (pageInfo) pageInfo.textContent = `Page ${currentPage + 1} of ${totalPages}`;
-}
-
-   prevBtn?.addEventListener('click', () => {
+  prevBtn?.addEventListener('click', () => {
     if (currentPage > 0) {
       currentPage--;
       loadList();
@@ -316,28 +314,28 @@ document.addEventListener("DOMContentLoaded", () => {
       acc[item.category].push(item);
       return acc;
     }, {});
-    Object.keys(grouped).sort().forEach(cat => {
-      const catHeader = document.createElement("li");
-      catHeader.className = "category-header";
-      catHeader.textContent = cat;
-      listEl.appendChild(catHeader);
-      grouped[cat].forEach(item => {
-        const li = document.createElement("li");
-        li.innerHTML = `<span>${item.text} - <strong>${item.category}</strong></span>
-          <button class="removeBtn" onclick="removeItem('${item._id}')">Remove</button>`;
-        listEl.appendChild(li);
-      });
+    categories.forEach(cat => {
+      if (grouped[cat]) {
+        const catHeader = document.createElement("li");
+        catHeader.className = "category-header";
+        catHeader.textContent = cat;
+        listEl.appendChild(catHeader);
+        grouped[cat].forEach(item => {
+          const li = document.createElement("li");
+          li.innerHTML = `<span>${item.text} - <strong>${item.category}</strong></span>
+            <button class="removeBtn" onclick="removeItem('${item._id}')">Remove</button>`;
+          listEl.appendChild(li);
+        });
+      }
     });
   }
 
-  // Service Worker
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/Shopping-List/service-worker.js')
       .then(() => console.log("Service Worker registered"))
       .catch(err => console.error("SW registration failed:", err));
   }
 
-  // Install button
   let deferredPrompt;
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
@@ -413,9 +411,14 @@ document.addEventListener("DOMContentLoaded", () => {
       const reader = new FileReader();
       reader.onload = async (evt) => {
         try {
-          const items = JSON.parse(evt.target.result);
-          for (const item of items) {
-            await addItem(item);
+          const imported = JSON.parse(evt.target.result);
+          const cached = JSON.parse(localStorage.getItem("cachedList") || "[]");
+          const existing = new Set(cached.map(i => i.text + "|" + i.category));
+          for (const item of imported) {
+            const key = item.text + "|" + item.category;
+            if (!existing.has(key)) {
+              await addItem(item);
+            }
           }
           await loadList();
         } catch (err) {
@@ -457,13 +460,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Attach utility button listeners
   document.getElementById("exportBtn")?.addEventListener("click", exportList);
   document.getElementById("importBtn")?.addEventListener("click", importList);
   document.getElementById("clearBtn")?.addEventListener("click", clearList);
   document.getElementById("shareBtn")?.addEventListener("click", shareList);
 });
 </script>
+
 
 
 <input type="file" id="importFileInput" style="display: none;" />
