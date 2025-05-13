@@ -355,14 +355,12 @@
       }
     });
 
-    // Queue actions for offline
     function queueAction(action) {
       const actionQueue = JSON.parse(localStorage.getItem("offlineQueue") || "[]");
       actionQueue.push(action);
       localStorage.setItem("offlineQueue", JSON.stringify(actionQueue));
     }
 
-    // Process queued actions when online
     function processQueue() {
       if (navigator.onLine) {
         const actionQueue = JSON.parse(localStorage.getItem("offlineQueue") || "[]");
@@ -380,12 +378,11 @@
               console.error("Error processing queued action:", err);
             }
           });
-          localStorage.removeItem("offlineQueue"); // Clear the queue after processing
+          localStorage.removeItem("offlineQueue");
         }
       }
     }
 
-    // Listen for online/offline events
     window.addEventListener('online', processQueue);
     window.addEventListener('offline', () => { console.log("You are offline. Actions will be queued."); });
 
@@ -398,11 +395,16 @@
             body: JSON.stringify(item)
           });
           if (!res.ok) throw new Error("Failed to add item");
+          loadList();
         } catch (err) {
           console.error("Add item failed:", err);
+          queueAction({
+            method: "POST",
+            url: `${apiUrl}/list`,
+            body: item
+          });
         }
       } else {
-        // Queue the add action if offline
         console.log("You are offline. Queueing add action.");
         queueAction({
           method: "POST",
@@ -419,7 +421,6 @@
       const newItem = { text, category };
       await addItem(newItem);
       input.value = "";
-      await loadList();
     });
 
     window.removeItem = async function(id) {
@@ -429,7 +430,6 @@
           if (res.ok) await loadList();
           else alert("Failed to delete item: " + res.statusText);
         } else {
-          // Queue the remove action if offline
           console.log("You are offline. Queueing remove action.");
           queueAction({
             method: "DELETE",
@@ -442,7 +442,6 @@
       }
     };
 
-    // Export list
     async function exportList() {
       const cached = JSON.parse(localStorage.getItem("cachedList") || "[]");
       if (!cached.length) return alert("No items to export");
@@ -455,7 +454,6 @@
       URL.revokeObjectURL(url);
     }
 
-    // Import list
     async function importList() {
       if (!importFileInput) return alert("Import input not found!");
       importFileInput.click();
@@ -486,7 +484,6 @@
       });
     }
 
-    // Clear list
     function clearList() {
       if (confirm("Are you sure you want to clear all items?")) {
         localStorage.removeItem("cachedList");
@@ -494,7 +491,6 @@
       }
     }
 
-    // Share list
     function shareList() {
       if (navigator.share) {
         navigator.share({
@@ -511,7 +507,6 @@
       }
     }
 
-    // Attach the event listeners
     window.exportList = exportList;
     window.importList = importList;
     window.clearList = clearList;
@@ -520,7 +515,7 @@
     clearBtn?.addEventListener('click', clearList);
     shareBtn?.addEventListener('click', shareList);
 
-    processQueue(); // Ensure queued actions are processed when app comes online
+    processQueue();
   });
 </script>
 
