@@ -232,6 +232,21 @@
   const itemsPerPage = 10;
   let totalPages = 1;
 
+  // Login functionality
+  loginForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const username = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+
+    if (username === VALID_USERNAME && password === VALID_PASSWORD) {
+      loginPopup.style.display = "none";
+      content.style.display = "block";
+      loadList();
+    } else {
+      loginError.textContent = "Invalid username or password!";
+    }
+  });
+
   // Populate categories
   function populateCategories() {
     categoryInput.innerHTML = categories
