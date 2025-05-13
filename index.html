@@ -183,7 +183,6 @@
   const listEl = document.getElementById("list");
   const importFileInput = document.getElementById("importFileInput");
 
-  // Categories to be dynamically added to the dropdown
   const categories = [
     "Fruits & Vegetables",
     "Dairy & Eggs",
@@ -197,14 +196,12 @@
     "Other"
   ];
 
-  // Populate the category dropdown with categories from the array
   function populateCategories() {
     categoryInput.innerHTML = categories
       .map(category => `<option value="${category}">${category}</option>`)
       .join("");
   }
 
-  // Call this function on page load to ensure the dropdown is populated
   populateCategories();
 
   loginForm?.addEventListener("submit", (event) => {
@@ -248,7 +245,7 @@
   async function handleOnlineStatus() {
     console.log("App is now online. Syncing offline changes...");
     await syncOfflineChanges();
-    await loadList(); // Fetch the latest list from the server
+    await loadList();
   }
 
   async function syncOfflineChanges() {
@@ -392,6 +389,12 @@
 
     if (navigator.onLine && !itemId.startsWith("offline-")) {
       try {
+        const checkRes = await fetch(`${apiUrl}/list/${itemId}`);
+        if (checkRes.status === 404) {
+          console.warn(`Item with ID: ${itemId} does not exist on the server.`);
+          return;
+        }
+
         const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
         if (res.ok) {
           console.log(`Successfully deleted item with ID: ${itemId}`);
@@ -474,6 +477,7 @@
             renderList(mergedList);
 
             if (navigator.onLine) {
+              const syncedItems = [];
               for (const item of importedItems) {
                 try {
                   const res = await fetch(`${apiUrl}/list`, {
@@ -481,7 +485,10 @@
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(item),
                   });
-                  if (!res.ok) {
+                  if (res.ok) {
+                    const savedItem = await res.json();
+                    syncedItems.push(savedItem);
+                  } else {
                     console.error("Failed to upload item:", item);
                   }
                 } catch (err) {
@@ -489,6 +496,7 @@
                 }
               }
               console.log("Imported items successfully synchronized with the server.");
+              await loadList(); // Fetch the latest list from the server
             } else {
               const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
               localStorage.setItem("offlineItems", JSON.stringify([...offlineItems, ...importedItems]));
