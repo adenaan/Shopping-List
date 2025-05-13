@@ -375,55 +375,56 @@
   }
 
   async function removeItem(itemId) {
-  if (!itemId) {
-    console.error("Invalid item ID:", itemId);
-    return;
-  }
-
-  console.log("Attempting to remove item with ID:", itemId);
-
-  // Remove the item from the local cache
-  let cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-  cachedList = cachedList.filter((item) => String(item._id) !== String(itemId));
-  localStorage.setItem("cachedList", JSON.stringify(cachedList));
-  renderList(cachedList);
-
-  // If the item was created offline, mark it for removal
-  if (itemId.startsWith("offline-")) {
-    const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
-    offlineRemovals.push(itemId);
-    localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
-    console.log(`Item with ID: ${itemId} marked for removal when online.`);
-    return;
-  }
-
-  // Check if the item exists on the server
-  if (navigator.onLine) {
-    try {
-      const checkRes = await fetch(`${apiUrl}/list/${itemId}`);
-      if (checkRes.status === 404) {
-        console.warn(`Item with ID: ${itemId} does not exist on the server.`);
-        return;
-      }
-
-      // Proceed to delete the item from the server
-      const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
-      if (res.ok) {
-        console.log(`Successfully deleted item with ID: ${itemId}`);
-      } else {
-        console.warn(`Failed to delete item with ID: ${itemId}`);
-      }
-    } catch (err) {
-      console.error(`Error removing item with ID: ${itemId}`, err);
+    if (!itemId) {
+      console.error("Invalid item ID:", itemId);
+      return;
     }
-  } else {
-    // Save the removal request for later synchronization
-    const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
-    offlineRemovals.push(itemId);
-    localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
-    console.log(`Item with ID: ${itemId} marked for removal when online.`);
+
+    console.log("Attempting to remove item with ID:", itemId);
+
+    // Remove the item from the local cache
+    let cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+    cachedList = cachedList.filter((item) => String(item._id) !== String(itemId));
+    localStorage.setItem("cachedList", JSON.stringify(cachedList));
+    renderList(cachedList);
+
+    // Handle offline items
+    if (itemId.startsWith("offline-")) {
+      const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
+      offlineRemovals.push(itemId);
+      localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
+      console.log(`Item with ID: ${itemId} marked for removal when online.`);
+      return;
+    }
+
+    // Check and remove item from the server
+    if (navigator.onLine) {
+      try {
+        // Check if the item exists on the server
+        const checkRes = await fetch(`${apiUrl}/list/${itemId}`);
+        if (checkRes.status === 404) {
+          console.warn(`Item with ID: ${itemId} does not exist on the server. Removing locally.`);
+          return;
+        }
+
+        // Proceed to delete the item from the server
+        const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
+        if (res.ok) {
+          console.log(`Successfully deleted item with ID: ${itemId}`);
+        } else {
+          console.warn(`Failed to delete item with ID: ${itemId}`);
+        }
+      } catch (err) {
+        console.error(`Error removing item with ID: ${itemId}`, err);
+      }
+    } else {
+      // Queue for future removal when online
+      const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
+      offlineRemovals.push(itemId);
+      localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
+      console.log(`Item with ID: ${itemId} marked for removal when online.`);
+    }
   }
-}
 
   addBtn?.addEventListener("click", async () => {
     const text = input?.value.trim();
