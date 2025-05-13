@@ -187,10 +187,11 @@
       <button onclick="shareList()">Share</button>
     </div>
 
-    <div class="pagination-controls">
-  <button onclick="loadList(currentPage + 1)">Next Page</button>
-  <button onclick="loadList(currentPage - 1)">Previous Page</button>
-  </div>
+  <div class="pagination">
+  <button id="prevButton">Prev</button>
+  <span id="pageInfo">Page 1 of 1</span>
+  <button id="nextButton">Next</button>
+</div>
 
     <button id="installBtn">Install App</button>
     <input type="file" id="importFileInput" style="display: none;" />
