@@ -187,8 +187,8 @@
       <button id="exportBtn">Export</button>
       <button id="shareBtn">Share</button>
       <button id="importBtn">Import</button>
-      <button onclick="clearList()">Clear All</button>
-      
+      <button id="clearBtn">Clear All</button>
+            
     </div>
 
   <div class="pagination">
@@ -261,7 +261,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const response = await fetch(`${apiUrl}/list?page=${currentPage}&limit=${ITEMS_PER_PAGE}`);
       const data = await response.json();
       if (response.ok) {
-        totalItems = data.total;
+        totalItems = data.total || 0; // Ensure totalItems is set
         renderList(data.items);
         updatePagination();
       } else {
@@ -275,21 +275,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function updatePagination() {
     const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-    
+
     if (prevBtn) {
       prevBtn.disabled = currentPage === 0;
     }
-    
+
     if (nextBtn) {
       nextBtn.disabled = currentPage >= totalPages - 1;
     }
-    
+
     if (pageInfo) {
       pageInfo.textContent = `Page ${currentPage + 1} of ${totalPages}`;
     }
   }
 
-  // Check if prevBtn and nextBtn are available
   if (prevBtn) {
     prevBtn.addEventListener('click', () => {
       if (currentPage > 0) {
@@ -359,7 +358,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Check if addBtn is available before adding event listener
   if (addBtn) {
     addBtn.addEventListener("click", async () => {
       const text = input.value.trim();
@@ -464,12 +462,20 @@ document.addEventListener("DOMContentLoaded", () => {
         await navigator.clipboard.writeText(shareableText);
         alert("Shopping List copied to clipboard!");
       }
-    } catch (err)      {
+    } catch (err) {
       console.error("Error sharing Shopping List:", err);
     }
   }
+
+  // Attach event listeners for export, import, clear, share buttons
+  document.getElementById("exportBtn").addEventListener('click', exportList);
+  document.getElementById("importBtn").addEventListener('click', importList);
+  document.getElementById("clearBtn").addEventListener('click', clearList);
+  document.getElementById("shareBtn").addEventListener('click', shareList);
+
 });
 </script>
+
 
 <input type="file" id="importFileInput" style="display: none;" />
 </body>
