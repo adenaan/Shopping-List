@@ -215,6 +215,10 @@
   const pageInfo = document.getElementById("pageInfo");
   const importFileInput = document.getElementById("importFileInput");
 
+  const ITEMS_PER_PAGE = 10;
+  let currentPage = 0;
+  let totalItems = 0;
+
   const categories = [
     "Fruits & Vegetables",
     "Dairy & Eggs",
@@ -227,8 +231,7 @@
     "Personal Care",
     "Other"
   ];
-  
-  // Login functionality
+
   loginForm.addEventListener("submit", (event) => {
     event.preventDefault();
     const username = document.getElementById("username").value;
@@ -243,7 +246,6 @@
     }
   });
 
-  // Populate categories
   function populateCategories() {
     categoryInput.innerHTML = categories
       .map(category => `<option value="${category}">${category}</option>`)
@@ -251,28 +253,24 @@
   }
   populateCategories();
 
-  // Define the number of items per page
-  const ITEMS_PER_PAGE = 10;
-
- async function loadList() {
+  async function loadList() {
     try {
-        // Fetch the data from the server
-        const response = await fetch(`${apiUrl}/list?page=${currentPage}&limit=${ITEMS_PER_PAGE}`);
-        const data = await response.json();
+      const response = await fetch(`${apiUrl}/list?page=${currentPage}&limit=${ITEMS_PER_PAGE}`);
+      const data = await response.json();
 
-        // Check if data is successfully fetched
-        if (response.ok) {
-            // Update the items and pagination
-            updateItems(data.items);
-            updatePagination(data.total);
-        } else {
-            throw new Error('Failed to load items');
-        }
+      if (response.ok) {
+        totalItems = data.total;
+        updateItems(data.items);
+        updatePagination();
+      } else {
+        throw new Error('Failed to load items');
+      }
     } catch (error) {
-        console.error('Error loading list:', error);
-        alert('Error loading list');
+      console.error('Error loading list:', error);
+      alert('Error loading list');
     }
-}
+  }
+
   function useCachedList() {
     const cached = localStorage.getItem('cachedList');
     let items = [];
@@ -287,10 +285,9 @@
       console.error("Error parsing cached list:", err);
     }
 
-    const initialLoad = items.slice(0, 20); // Load first 20 items
+    const initialLoad = items.slice(0, 20);
     renderList(initialLoad);
 
-    // Lazy load remaining items
     setTimeout(() => {
       const remainingItems = items.slice(20);
       if (remainingItems.length) {
@@ -299,46 +296,38 @@
     }, 100);
   }
 
-  // Function to update the items list
-function updateItems(items) {
+  function updateItems(items) {
     const listContainer = document.getElementById('list-container');
-    listContainer.innerHTML = ''; // Clear the existing list
+    listContainer.innerHTML = '';
 
     items.forEach(item => {
-        const itemElement = document.createElement('div');
-        itemElement.textContent = item.name;
-        listContainer.appendChild(itemElement);
+      const itemElement = document.createElement('div');
+      itemElement.textContent = item.name;
+      listContainer.appendChild(itemElement);
     });
-}
+  }
 
-  // Function to update pagination controls
-function updatePagination(totalItems) {
+  function updatePagination() {
     const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-
-    // Disable/Enable pagination buttons
-    prevButton.disabled = currentPage === 0;
-    nextBtn.disabled = currentPage === totalPages - 1;
-
-    // Update pagination info text
+    prevBtn.disabled = currentPage === 0;
+    nextBtn.disabled = currentPage >= totalPages - 1;
     pageInfo.textContent = `Page ${currentPage + 1} of ${totalPages}`;
-}
+  }
 
-
-prevButton.addEventListener('click', () => {
+  prevBtn.addEventListener('click', () => {
     if (currentPage > 0) {
-        currentPage--;
-        loadList();
+      currentPage--;
+      loadList();
     }
-});
+  });
 
-nextBtn.addEventListener('click', () => {
+  nextBtn.addEventListener('click', () => {
     const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
     if (currentPage < totalPages - 1) {
-        currentPage++;
-        loadList();
+      currentPage++;
+      loadList();
     }
-});
-
+  });
 
   function renderList(items) {
     listEl.innerHTML = "";
@@ -363,7 +352,6 @@ nextBtn.addEventListener('click', () => {
     });
   }
 
-  // Offline installation logic
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/Shopping-List/service-worker.js')
       .then(() => console.log('Service Worker registered.'))
@@ -401,7 +389,7 @@ nextBtn.addEventListener('click', () => {
           body: JSON.stringify(newItem),
         });
         if (res.ok) {
-          await loadList(currentPage);
+          await loadList();
         }
       } else {
         console.warn("Offline. Item will sync later.");
@@ -417,7 +405,7 @@ nextBtn.addEventListener('click', () => {
       if (navigator.onLine) {
         const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
         if (res.ok) {
-          await loadList(currentPage);
+          await loadList();
         }
       } else {
         console.warn("Offline. Item will sync later.");
@@ -451,7 +439,7 @@ nextBtn.addEventListener('click', () => {
           for (const item of importedItems) {
             await addItem(item);
           }
-          await loadList(currentPage);
+          await loadList();
         } catch (err) {
           console.error("Error importing list:", err);
         }
@@ -466,7 +454,7 @@ nextBtn.addEventListener('click', () => {
       if (navigator.onLine) {
         await fetch(`${apiUrl}/list`, { method: "DELETE" });
         localStorage.removeItem("cachedList");
-        await loadList(1);
+        await loadList();
       } else {
         console.warn("Offline mode. Clear list when back online.");
       }
