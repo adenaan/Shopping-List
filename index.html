@@ -287,18 +287,13 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updatePagination() {
-    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-    prevBtn.disabled = currentPage === 0;
-    nextBtn.disabled = currentPage >= totalPages - 1;
-    pageInfo.textContent = `Page ${currentPage + 1} of ${totalPages}`;
-  }
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
-  prevBtn?.addEventListener('click', () => {
-    if (currentPage > 0) {
-      currentPage--;
-      loadList();
-    }
-  });
+  if (prevBtn) prevBtn.disabled = currentPage === 0;
+  if (nextBtn) nextBtn.disabled = currentPage >= totalPages - 1;
+  if (pageInfo) pageInfo.textContent = `Page ${currentPage + 1} of ${totalPages}`;
+}
+
 
   nextBtn?.addEventListener('click', () => {
     const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
