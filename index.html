@@ -265,6 +265,11 @@ document.addEventListener("DOMContentLoaded", () => {
       totalItems = data.total || 0; // Ensure totalItems is set
       renderList(data.items);
       updatePagination();
+      // Cache the shopping list for offline use
+      if ('caches' in window) {
+        const cache = await caches.open('shopping-list-cache');
+        cache.put(`${apiUrl}/list?page=${currentPage}&limit=${ITEMS_PER_PAGE}`, response);
+      }
     } catch (error) {
       console.error('Error loading list:', error);
       alert('Error loading list: ' + error.message);
@@ -480,8 +485,8 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("clearBtn").addEventListener("click", clearList);
   document.getElementById("shareBtn").addEventListener("click", shareList);
 });
-
 </script>
+
 
 <input type="file" id="importFileInput" style="display: none;" />
 </body>
