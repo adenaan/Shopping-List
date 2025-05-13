@@ -49,10 +49,10 @@
       font-weight: bold;
       font-size: 1.2em;
       margin-top: 10px;
-      background-color: #d4edda; /* Light green background */
+      background-color: #d4edda;
       padding: 10px;
       border-radius: 6px;
-      color: #155724; /* Dark green text */
+      color: #155724;
     }
     .removeBtn {
       background: red;
@@ -131,6 +131,29 @@
     #content {
       display: none;
     }
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-top: 20px;
+    }
+    .pagination button {
+      padding: 10px 15px;
+      margin: 0 5px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .pagination button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    .pagination span {
+      font-size: 1em;
+      margin: 0 10px;
+    }
   </style>
 </head>
 <body>
@@ -164,6 +187,12 @@
       <button onclick="shareList()">Share</button>
     </div>
 
+    <div class="pagination">
+      <button id="prevBtn" disabled>Previous</button>
+      <span id="pageInfo">Page 1</span>
+      <button id="nextBtn" disabled>Next</button>
+    </div>
+
     <button id="installBtn">Install App</button>
     <input type="file" id="importFileInput" style="display: none;" />
   </div>
@@ -181,8 +210,10 @@
   const categoryInput = document.getElementById("categoryInput");
   const addBtn = document.getElementById("addBtn");
   const listEl = document.getElementById("list");
+  const prevBtn = document.getElementById("prevBtn");
+  const nextBtn = document.getElementById("nextBtn");
+  const pageInfo = document.getElementById("pageInfo");
   const importFileInput = document.getElementById("importFileInput");
-  const shareButton = document.getElementById("shareBtn");
 
   const categories = [
     "Fruits & Vegetables",
@@ -197,6 +228,11 @@
     "Other"
   ];
 
+  let currentPage = 1;
+  const itemsPerPage = 10;
+  let totalPages = 1;
+
+  // Populate categories
   function populateCategories() {
     categoryInput.innerHTML = categories
       .map(category => `<option value="${category}">${category}</option>`)
@@ -204,19 +240,71 @@
   }
   populateCategories();
 
-  loginForm?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const username = document.getElementById("username")?.value;
-    const password = document.getElementById("password")?.value;
-    if (username === VALID_USERNAME && password === VALID_PASSWORD) {
-      loginPopup.style.display = "none";
-      content.style.display = "block";
-      loadList();
-    } else {
-      loginError.textContent = "Invalid username or password!";
+  async function loadList(page = 1) {
+    currentPage = page;
+    listEl.innerHTML = "<p>Loading items...</p>";
+    try {
+      if (navigator.onLine) {
+        const res = await fetch(`${apiUrl}/list?page=${page}&limit=${itemsPerPage}`);
+        if (res.ok) {
+          const data = await res.json();
+          const { items, totalPages: serverTotalPages } = data;
+          totalPages = serverTotalPages;
+          localStorage.setItem('cachedList', JSON.stringify(items));
+          renderList(items);
+          updatePaginationControls();
+        } else {
+          console.error("Failed to fetch items.");
+          useCachedList();
+        }
+      } else {
+        console.warn("Device offline. Using cached items.");
+        useCachedList();
+      }
+    } catch (err) {
+      console.error("Error loading list:", err);
+      useCachedList();
     }
+  }
+
+  function updatePaginationControls() {
+    prevBtn.disabled = currentPage === 1;
+    nextBtn.disabled = currentPage === totalPages;
+    pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+  }
+
+  prevBtn.addEventListener("click", () => {
+    if (currentPage > 1) loadList(currentPage - 1);
   });
 
+  nextBtn.addEventListener("click", () => {
+    if (currentPage < totalPages) loadList(currentPage + 1);
+  });
+
+  function renderList(items) {
+    listEl.innerHTML = "";
+    const groupedItems = items.reduce((acc, item) => {
+      if (!acc[item.category]) acc[item.category] = [];
+      acc[item.category].push(item);
+      return acc;
+    }, {});
+
+    Object.keys(groupedItems).sort().forEach(category => {
+      const categoryHeader = document.createElement("li");
+      categoryHeader.className = "category-header";
+      categoryHeader.textContent = category;
+      listEl.appendChild(categoryHeader);
+
+      groupedItems[category].forEach(item => {
+        const listItem = document.createElement("li");
+        listItem.innerHTML = `<span>${item.text} - <strong>${item.category}</strong></span>
+          <button class="removeBtn" onclick="removeItem('${item._id}')">Remove</button>`;
+        listEl.appendChild(listItem);
+      });
+    });
+  }
+
+  // Offline installation logic
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/Shopping-List/service-worker.js')
       .then(() => console.log('Service Worker registered.'))
@@ -240,232 +328,47 @@
     }
   });
 
-  window.addEventListener('online', handleOnlineStatus);
-
-  async function handleOnlineStatus() {
-    console.log("App is now online. Syncing offline changes...");
-    syncOfflineChanges(); // Run sync in the background
-    await loadList(); // Load items immediately
-  }
-
-  async function syncOfflineChanges() {
-    try {
-      const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
-      const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
-
-      // Perform deletions in parallel
-      const deletions = offlineRemovals.map(async (itemId) => {
-        if (!itemId.startsWith("offline-")) {
-          try {
-            const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
-            if (res.ok) console.log(`Deleted item: ${itemId}`);
-          } catch (err) {
-            console.error(`Error deleting item ${itemId}:`, err);
-          }
-        }
-      });
-
-      // Perform additions in parallel
-      const additions = offlineItems.map(async (item) => {
-        try {
-          const res = await fetch(`${apiUrl}/list`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(item),
-          });
-          if (res.ok) {
-            const addedItem = await res.json();
-            updateLocalItemId(item.id, addedItem._id);
-          }
-        } catch (err) {
-          console.error(`Error syncing item:`, err);
-        }
-      });
-
-      await Promise.all([...deletions, ...additions]);
-      localStorage.removeItem("offlineItems");
-      localStorage.removeItem("offlineRemovals");
-    } catch (err) {
-      console.error("Error syncing offline changes:", err);
-    }
-  }
-
-  function updateLocalItemId(localId, serverId) {
-    const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-    const updatedList = cachedList.map(item =>
-      item.id === localId ? { ...item, _id: serverId } : item
-    );
-    localStorage.setItem("cachedList", JSON.stringify(updatedList));
-  }
-
-  async function loadList() {
-    listEl.innerHTML = "<p>Loading items...</p>"; // Temporary loading message
-    try {
-      if (navigator.onLine) {
-        const res = await fetch(`${apiUrl}/list`);
-        if (res.ok) {
-          const data = await res.json();
-          if (!data.items || !Array.isArray(data.items)) {
-            console.error("Invalid response from server. Expected an 'items' array.");
-            useCachedList();
-            return;
-          }
-          const items = data.items;
-          localStorage.setItem('cachedList', JSON.stringify(items));
-          renderList(items);
-        } else {
-          console.error("Failed to fetch items from the server.");
-          useCachedList();
-        }
-      } else {
-        console.warn("Device is offline. Using cached items.");
-        useCachedList();
-      }
-    } catch (err) {
-      console.error("Error loading list:", err);
-      useCachedList();
-    }
-  }
-
-  function useCachedList() {
-    const cached = localStorage.getItem('cachedList');
-    let items = [];
-
-    try {
-      items = JSON.parse(cached) || [];
-      if (!Array.isArray(items)) {
-        console.error("Cached list is not an array. Resetting to an empty array.");
-        items = [];
-      }
-    } catch (err) {
-      console.error("Error parsing cached list:", err);
-    }
-
-    const initialLoad = items.slice(0, 20); // Load first 20 items
-    renderList(initialLoad);
-
-    // Lazy load remaining items
-    setTimeout(() => {
-      const remainingItems = items.slice(20);
-      if (remainingItems.length) {
-        renderList([...initialLoad, ...remainingItems]);
-      }
-    }, 100);
-  }
-
-  function renderList(items) {
-    if (!Array.isArray(items)) {
-      console.error("Invalid items data. Expected an array, received:", items);
-      items = [];
-    }
-
-    const groupedItems = items.reduce((acc, item) => {
-      if (!acc[item.category]) acc[item.category] = [];
-      acc[item.category].push(item);
-      return acc;
-    }, {});
-
-    const fragment = document.createDocumentFragment(); // Use DocumentFragment
-    Object.keys(groupedItems).sort().forEach(category => {
-      const categoryHeader = document.createElement("li");
-      categoryHeader.className = "category-header";
-      categoryHeader.textContent = category;
-      fragment.appendChild(categoryHeader);
-
-      groupedItems[category].forEach(item => {
-        const listItem = document.createElement("li");
-        listItem.innerHTML = `<span>${item.text} - <strong>${item.category}</strong></span>
-          <button class="removeBtn" onclick="removeItem('${item._id}')">Remove</button>`;
-        fragment.appendChild(listItem);
-      });
-    });
-
-    listEl.innerHTML = ""; // Clear existing list
-    listEl.appendChild(fragment); // Append the built fragment
-  }
-  
-  function addItemOffline(item) {
-    const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
-    offlineItems.push(item);
-    localStorage.setItem("offlineItems", JSON.stringify(offlineItems));
-    const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-    cachedList.push(item);
-    localStorage.setItem("cachedList", JSON.stringify(cachedList));
-    renderList(cachedList);
-  }
-
-  async function removeItem(itemId) {
-    if (!itemId) {
-      console.error("Invalid item ID:", itemId);
-      return;
-    }
-
-    console.log("Attempting to remove item with ID:", itemId);
-
-    let cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-    const itemExistsLocally = cachedList.some(item => String(item._id) === String(itemId));
-
-    if (!itemExistsLocally) {
-      console.warn(`Item with ID: ${itemId} does not exist locally. Skipping removal.`);
-      return;
-    }
-
-    cachedList = cachedList.filter(item => String(item._id) !== String(itemId));
-    localStorage.setItem("cachedList", JSON.stringify(cachedList));
-    renderList(cachedList);
-
-    if (navigator.onLine && !itemId.startsWith("offline-")) {
-      try {
-        const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
-        if (res.ok) {
-          console.log(`Successfully deleted item with ID: ${itemId}`);
-        } else if (res.status === 404) {
-          console.warn(`Item with ID: ${itemId} does not exist on the server. Removing locally.`);
-        } else {
-          console.warn(`Failed to delete item with ID: ${itemId}`);
-        }
-      } catch (err) {
-        console.error(`Error removing item with ID: ${itemId}`, err);
-      }
-    } else {
-      const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
-      offlineRemovals.push(itemId);
-      localStorage.setItem("offlineRemovals", JSON.stringify(offlineRemovals));
-      console.log(`Item with ID: ${itemId} marked for removal when online.`);
-    }
-  }
-
-  addBtn?.addEventListener("click", async () => {
-    const text = input?.value.trim();
-    const category = categoryInput?.value.trim();
+  addBtn.addEventListener("click", async () => {
+    const text = input.value.trim();
+    const category = categoryInput.value.trim();
     if (!text || !category) return;
 
-    const newItem = { text, category, id: `offline-${Date.now()}` };
-
-    if (navigator.onLine) {
-      try {
+    const newItem = { text, category };
+    try {
+      if (navigator.onLine) {
         const res = await fetch(`${apiUrl}/list`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(newItem),
         });
         if (res.ok) {
-          const added = await res.json();
-          const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-          cachedList.push(added);
-          localStorage.setItem("cachedList", JSON.stringify(cachedList));
-          renderList(cachedList);
+          await loadList(currentPage);
         }
-      } catch (err) {
-        console.error("Error syncing item:", err);
+      } else {
+        console.warn("Offline. Item will sync later.");
       }
-    } else {
-      addItemOffline(newItem);
+    } catch (err) {
+      console.error("Error adding item:", err);
     }
     input.value = "";
   });
 
-  function exportList() {
+  async function removeItem(itemId) {
+    try {
+      if (navigator.onLine) {
+        const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
+        if (res.ok) {
+          await loadList(currentPage);
+        }
+      } else {
+        console.warn("Offline. Item will sync later.");
+      }
+    } catch (err) {
+      console.error("Error removing item:", err);
+    }
+  }
+
+  async function exportList() {
     const cached = JSON.parse(localStorage.getItem("cachedList") || "[]");
     const blob = new Blob([JSON.stringify(cached, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -476,73 +379,40 @@
     URL.revokeObjectURL(url);
   }
 
-  let importListenerAdded = false;
+  async function importList() {
+    importFileInput.click();
+    importFileInput.addEventListener("change", async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
 
-  function importList() {
-    importFileInput?.click();
-    if (!importListenerAdded) {
-      importFileInput?.addEventListener("change", (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          try {
-            const importedItems = JSON.parse(e.target.result);
-            const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-            const mergedList = [...cachedList];
-            importedItems.forEach(item => {
-              if (!cachedList.some(cachedItem => cachedItem.text === item.text && cachedItem.category === item.category)) {
-                mergedList.push(item);
-              }
-            });
-
-            localStorage.setItem("cachedList", JSON.stringify(mergedList));
-            renderList(mergedList);
-
-            if (navigator.onLine) {
-              const syncedItems = [];
-              for (const item of importedItems) {
-                try {
-                  const res = await fetch(`${apiUrl}/list`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(item),
-                  });
-                  if (res.ok) {
-                    const savedItem = await res.json();
-                    syncedItems.push(savedItem);
-                    updateLocalItemId(item.id, savedItem._id); // Update local ID with server ID
-                  } else {
-                    console.error("Failed to upload item:", item);
-                  }
-                } catch (err) {
-                  console.error("Error uploading item:", err);
-                }
-              }
-              console.log("Imported items successfully synchronized with the server.");
-              await loadList();
-            } else {
-              const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
-              localStorage.setItem("offlineItems", JSON.stringify([...offlineItems, ...importedItems]));
-              console.log("Imported items saved for syncing later (offline mode).");
-            }
-          } catch (err) {
-            console.error("Error importing list:", err);
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const importedItems = JSON.parse(e.target.result);
+          for (const item of importedItems) {
+            await addItem(item);
           }
-        };
-        reader.readAsText(file);
-      });
-      importListenerAdded = true;
-    }
+          await loadList(currentPage);
+        } catch (err) {
+          console.error("Error importing list:", err);
+        }
+      };
+      reader.readAsText(file);
+    });
   }
 
-  function clearList() {
+  async function clearList() {
     if (!confirm("Are you sure you want to clear the entire list?")) return;
-    localStorage.removeItem("cachedList");
-    listEl.innerHTML = "";
-    if (navigator.onLine) {
-      fetch(`${apiUrl}/list`, { method: "DELETE" }).catch(console.error);
+    try {
+      if (navigator.onLine) {
+        await fetch(`${apiUrl}/list`, { method: "DELETE" });
+        localStorage.removeItem("cachedList");
+        await loadList(1);
+      } else {
+        console.warn("Offline mode. Clear list when back online.");
+      }
+    } catch (err) {
+      console.error("Error clearing list:", err);
     }
   }
 
@@ -552,36 +422,21 @@
       alert("Your shopping list is empty.");
       return;
     }
-
-    const shareableText = cachedList
-      .map(item => `${item.text} (${item.category})`)
-      .join("\n");
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: "Shopping List",
-          text: shareableText,
-        });
+    const shareableText = cachedList.map(item => `${item.text} (${item.category})`).join("\n");
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "Shopping List", text: shareableText });
         alert("Shopping List shared successfully!");
-      } catch (error) {
-        console.error("Error sharing Shopping List:", error);
-        alert("An error occurred while sharing. Please try again.");
-      }
-    } else {
-      try {
+      } else {
         await navigator.clipboard.writeText(shareableText);
         alert("Shopping List copied to clipboard!");
-      } catch (error) {
-        console.error("Error copying to clipboard:", error);
-        alert("Unable to copy the list to clipboard. Please try again.");
       }
+    } catch (err) {
+      console.error("Error sharing Shopping List:", err);
     }
   }
 
-  shareButton?.addEventListener("click", shareList);
-
-  document.addEventListener("DOMContentLoaded", loadList);
+  document.addEventListener("DOMContentLoaded", () => loadList());
 </script>
 </body>
 </html>
