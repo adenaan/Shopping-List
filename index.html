@@ -188,8 +188,8 @@
     </div>
 
     <div class="pagination-controls">
-  <button id="prevPageBtn" onclick="changePage(-1)">Previous</button>
-  <button id="nextPageBtn" onclick="changePage(1)">Next</button>
+  <button onclick="loadList(currentPage + 1)">Next Page</button>
+  <button onclick="loadList(currentPage - 1)">Previous Page</button>
   </div>
 
     <button id="installBtn">Install App</button>
