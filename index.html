@@ -227,11 +227,7 @@
     "Personal Care",
     "Other"
   ];
-
-  let currentPage = 1;
-  const itemsPerPage = 10;
-  let totalPages = 1;
-
+  
   // Login functionality
   loginForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -254,6 +250,10 @@
       .join("");
   }
   populateCategories();
+
+  let currentPage = 0;
+  let totalPages = 1;
+  const ITEMS_PER_PAGE = 10;
 
   async function loadList(page = 1) {
     currentPage = page;
@@ -313,16 +313,26 @@
   const nextButton = document.getElementById("nextButton");
   const pageInfo = document.getElementById("pageInfo");
 
-  if (prevButton) {
-    prevButton.disabled = currentPage === 0;
-  }
-  if (nextButton) {
-    nextButton.disabled = currentPage >= totalPages - 1;
-  }
-  if (pageInfo) {
-    pageInfo.textContent = `Page ${currentPage + 1} of ${totalPages}`;
-  }
+  if (prevButton) prevButton.disabled = currentPage <= 0;
+  if (nextButton) nextButton.disabled = currentPage >= totalPages - 1;
+  if (pageInfo) pageInfo.textContent = `Page ${currentPage + 1} of ${totalPages}`;
 }
+
+// Add this once when initializing:
+document.getElementById("prevButton").addEventListener("click", () => {
+  if (currentPage > 0) {
+    currentPage--;
+    loadList();
+  }
+});
+
+document.getElementById("nextButton").addEventListener("click", () => {
+  if (currentPage < totalPages - 1) {
+    currentPage++;
+    loadList();
+  }
+});
+
 
 
   function renderList(items) {
