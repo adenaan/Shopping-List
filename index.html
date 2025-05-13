@@ -230,7 +230,7 @@ document.addEventListener("DOMContentLoaded", () => {
     "Personal Care", "Other"
   ];
 
-  // Check if login elements are available
+  // Login form submission
   if (loginForm) {
     loginForm.addEventListener("submit", (event) => {
       event.preventDefault();
@@ -331,12 +331,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Ensure Service Worker and App Install works
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/Shopping-List/service-worker.js')
       .then(() => console.log('Service Worker registered.'))
       .catch(err => console.error('Service Worker registration failed:', err));
   }
 
+  // App install button logic
   let deferredPrompt;
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
@@ -358,6 +360,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Add item to the list
   if (addBtn) {
     addBtn.addEventListener("click", async () => {
       const text = input.value.trim();
@@ -400,6 +403,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // File import and export functionality
   async function exportList() {
     const cached = JSON.parse(localStorage.getItem("cachedList") || "[]");
+    if (!cached.length) {
+      alert("Your shopping list is empty. Add items before exporting.");
+      return;
+    }
     const blob = new Blob([JSON.stringify(cached, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -475,7 +482,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 });
 </script>
-
 
 <input type="file" id="importFileInput" style="display: none;" />
 </body>
