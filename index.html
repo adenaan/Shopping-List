@@ -168,7 +168,7 @@
     <input type="file" id="importFileInput" style="display: none;" />
   </div>
 
- <script>
+<script>
   const VALID_USERNAME = "addie";
   const VALID_PASSWORD = "1234";
   const apiUrl = 'https://shoppinglistaddie.glitch.me';
@@ -253,20 +253,14 @@
       const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
       const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
 
-      offlineRemovals.forEach(itemId => {
-        const index = offlineItems.findIndex(item => item.id === itemId);
-        if (index !== -1) {
-          offlineItems.splice(index, 1);
-        }
-      });
-
-      localStorage.setItem("offlineItems", JSON.stringify(offlineItems));
-
+      // Remove items queued for deletion
       for (const itemId of offlineRemovals) {
         if (!itemId.startsWith("offline-")) {
           try {
             const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
-            if (!res.ok) {
+            if (res.ok) {
+              console.log(`Successfully deleted item with ID: ${itemId}`);
+            } else {
               console.warn(`Failed to delete item with ID: ${itemId}`);
             }
           } catch (err) {
@@ -277,6 +271,7 @@
 
       localStorage.removeItem("offlineRemovals");
 
+      // Sync offline items
       for (const item of offlineItems) {
         try {
           const res = await fetch(`${apiUrl}/list`, {
@@ -379,17 +374,6 @@
     listEl.innerHTML = html;
   }
 
-  async function addItemOffline(item) {
-    const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
-    offlineItems.push(item);
-    localStorage.setItem("offlineItems", JSON.stringify(offlineItems));
-
-    const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
-    cachedList.push(item);
-    localStorage.setItem("cachedList", JSON.stringify(cachedList));
-    renderList(cachedList);
-  }
-
   async function removeItem(itemId) {
     if (!itemId) {
       console.error("Invalid item ID:", itemId);
@@ -412,15 +396,11 @@
 
     if (navigator.onLine && !itemId.startsWith("offline-")) {
       try {
-        const checkRes = await fetch(`${apiUrl}/list/${itemId}`);
-        if (checkRes.status === 404) {
-          console.warn(`Item with ID: ${itemId} does not exist on the server. Removing locally.`);
-          return;
-        }
-
         const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
         if (res.ok) {
           console.log(`Successfully deleted item with ID: ${itemId}`);
+        } else if (res.status === 404) {
+          console.warn(`Item with ID: ${itemId} does not exist on the server. Removing locally.`);
         } else {
           console.warn(`Failed to delete item with ID: ${itemId}`);
         }
