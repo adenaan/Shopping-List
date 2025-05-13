@@ -254,10 +254,10 @@
   // Define the number of items per page
   const ITEMS_PER_PAGE = 10;
 
-  async function loadList() {
+ async function loadList() {
     try {
         // Fetch the data from the server
-        const response = await fetch(`${serverUrl}/list?page=${currentPage}&limit=${ITEMS_PER_PAGE}`);
+        const response = await fetch(`${apiUrl}/list?page=${currentPage}&limit=${ITEMS_PER_PAGE}`);
         const data = await response.json();
 
         // Check if data is successfully fetched
@@ -273,7 +273,6 @@
         alert('Error loading list');
     }
 }
-
   function useCachedList() {
     const cached = localStorage.getItem('cachedList');
     let items = [];
