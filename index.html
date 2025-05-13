@@ -244,8 +244,8 @@
 
   async function handleOnlineStatus() {
     console.log("App is now online. Syncing offline changes...");
-    await syncOfflineChanges();
-    await loadList();
+    syncOfflineChanges(); // Run sync in the background
+    await loadList(); // Load items immediately
   }
 
   async function syncOfflineChanges() {
@@ -253,26 +253,20 @@
       const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
       const offlineRemovals = JSON.parse(localStorage.getItem("offlineRemovals") || "[]");
 
-      // Remove items queued for deletion
-      for (const itemId of offlineRemovals) {
+      // Perform deletions in parallel
+      const deletions = offlineRemovals.map(async (itemId) => {
         if (!itemId.startsWith("offline-")) {
           try {
             const res = await fetch(`${apiUrl}/list/${itemId}`, { method: "DELETE" });
-            if (res.ok) {
-              console.log(`Successfully deleted item with ID: ${itemId}`);
-            } else {
-              console.warn(`Failed to delete item with ID: ${itemId}`);
-            }
+            if (res.ok) console.log(`Deleted item: ${itemId}`);
           } catch (err) {
-            console.error(`Error deleting item with ID: ${itemId}`, err);
+            console.error(`Error deleting item ${itemId}:`, err);
           }
         }
-      }
+      });
 
-      localStorage.removeItem("offlineRemovals");
-
-      // Sync offline items
-      for (const item of offlineItems) {
+      // Perform additions in parallel
+      const additions = offlineItems.map(async (item) => {
         try {
           const res = await fetch(`${apiUrl}/list`, {
             method: "POST",
@@ -281,17 +275,16 @@
           });
           if (res.ok) {
             const addedItem = await res.json();
-            console.log(`Successfully synced item with ID: ${addedItem._id}`);
             updateLocalItemId(item.id, addedItem._id);
-          } else {
-            console.warn("Failed to sync item:", item);
           }
         } catch (err) {
-          console.error("Error syncing item:", err);
+          console.error(`Error syncing item:`, err);
         }
-      }
+      });
 
+      await Promise.all([...deletions, ...additions]);
       localStorage.removeItem("offlineItems");
+      localStorage.removeItem("offlineRemovals");
     } catch (err) {
       console.error("Error syncing offline changes:", err);
     }
@@ -306,6 +299,7 @@
   }
 
   async function loadList() {
+    listEl.innerHTML = "<p>Loading items...</p>"; // Temporary loading message
     try {
       if (navigator.onLine) {
         const res = await fetch(`${apiUrl}/list`);
@@ -317,7 +311,6 @@
             return;
           }
           const items = data.items;
-          console.log("Fetched items:", items);
           localStorage.setItem('cachedList', JSON.stringify(items));
           renderList(items);
         } else {
@@ -348,7 +341,16 @@
       console.error("Error parsing cached list:", err);
     }
 
-    renderList(items);
+    const initialLoad = items.slice(0, 20); // Load first 20 items
+    renderList(initialLoad);
+
+    // Lazy load remaining items
+    setTimeout(() => {
+      const remainingItems = items.slice(20);
+      if (remainingItems.length) {
+        renderList([...initialLoad, ...remainingItems]);
+      }
+    }, 100);
   }
 
   function renderList(items) {
@@ -363,15 +365,33 @@
       return acc;
     }, {});
 
-    let html = '';
+    const fragment = document.createDocumentFragment(); // Use DocumentFragment
     Object.keys(groupedItems).sort().forEach(category => {
-      html += `<li class="category-header">${category}</li>`;
+      const categoryHeader = document.createElement("li");
+      categoryHeader.className = "category-header";
+      categoryHeader.textContent = category;
+      fragment.appendChild(categoryHeader);
+
       groupedItems[category].forEach(item => {
-        html += createListItemHTML(item);
+        const listItem = document.createElement("li");
+        listItem.innerHTML = `<span>${item.text} - <strong>${item.category}</strong></span>
+          <button class="removeBtn" onclick="removeItem('${item._id}')">Remove</button>`;
+        fragment.appendChild(listItem);
       });
     });
 
-    listEl.innerHTML = html;
+    listEl.innerHTML = ""; // Clear existing list
+    listEl.appendChild(fragment); // Append the built fragment
+  }
+  
+  function addItemOffline(item) {
+    const offlineItems = JSON.parse(localStorage.getItem("offlineItems") || "[]");
+    offlineItems.push(item);
+    localStorage.setItem("offlineItems", JSON.stringify(offlineItems));
+    const cachedList = JSON.parse(localStorage.getItem("cachedList") || "[]");
+    cachedList.push(item);
+    localStorage.setItem("cachedList", JSON.stringify(cachedList));
+    renderList(cachedList);
   }
 
   async function removeItem(itemId) {
@@ -440,15 +460,10 @@
         console.error("Error syncing item:", err);
       }
     } else {
-      await addItemOffline(newItem);
+      addItemOffline(newItem);
     }
     input.value = "";
   });
-
-  function createListItemHTML(item) {
-    return `<li><span>${item.text} - <strong>${item.category}</strong></span>
-      <button class="removeBtn" onclick="removeItem('${item._id}')">Remove</button></li>`;
-  }
 
   function exportList() {
     const cached = JSON.parse(localStorage.getItem("cachedList") || "[]");
